@@ -22,6 +22,9 @@ else:
     from functools import lru_cache as cache
 
 
+
+from protocol import ChatMessage, Role
+
 from config import (
     MODEL_NAME, 
     MODEL_PATH, 
@@ -39,8 +42,45 @@ from config import (
 )
 
 
+class BasePromptAdapter: 
+    """对话模型提示词适配"""
+
+    def __init__(self): 
+        self.system_prompt: str = "You ara a helpful assistant!\n"
+        self.user_prompt: str = "Human: {}\nAssistant: "
+        self.assistant: str = "{}\n"
+        self.stop = None
+    
+    def construct_prompt(self, messages: List[ChatMessage]) -> str: 
+        """Covert messages into a prompt string.
+
+        Args:
+            messages (List[ChatMessage]): The conversation message in previous runs.
+
+        Returns:
+            string: formated prompt.
+        """
+        prompt = self.system_prompt
+        user_content = []
+        for message in messages: 
+            role, content = message.role, message.content
+            if role in [Role.USER, Role.SYSTEM]: 
+                user_content.append(content)
+            elif role == Role.ASSISTANT: 
+                prompt += self.user_prompt.format("\n".join(user_content))
+                prompt += self.assistant_prompt.format(content)
+                user_content = []
+            else: 
+                raise ValueError(f"Unknown role: {role}")
+        
+        if user_content: 
+            prompt += self.user_prompt.format("\n".join(user_content))
+        
+        return prompt
+
+
 class BaseModelAdapter: 
-    """The base and the default model adapter."""
+    """模型适配（LoRA）"""
     
     model_names = []
 
