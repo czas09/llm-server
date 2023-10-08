@@ -10,7 +10,8 @@ def get_chat_model():
 
     elif "baichuan" in MODEL_NAME:    # TODO(zyw)
         from models.baichuan import load_baichuan_model
-        model = load_baichuan_model()
+        from models.baichuan import Baichuan
+        model = Baichuan()
 
     elif "qwen" in MODEL_NAME:    # TODO(zyw)
         from models.qwen import load_qwen_model
