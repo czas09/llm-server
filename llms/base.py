@@ -48,8 +48,8 @@ class BasePromptAdapter:
     def __init__(self): 
         self.system_prompt: str = "You ara a helpful assistant!\n"
         self.user_prompt: str = "Human: {}\nAssistant: "
-        self.assistant: str = "{}\n"
-        self.stop = None
+        self.assistant_prompt: str = "{}\n"
+        self.stop = dict()
     
     def construct_prompt(self, messages: List[ChatMessage]) -> str: 
         """Covert messages into a prompt string.
@@ -196,32 +196,6 @@ class BaseModelAdapter:
             adapter_path, 
             torch_dtype=model_kwargs.get("torch_dtype", torch.float16), 
         )
-        return model
-
-    def load_adapter_model(self, model, tokenizer, adapter_path, is_chatglm, model_kwargs, **kwargs):
-        use_ptuning_v2 = kwargs.get("use_ptuning_v2", False)
-        if not is_chatglm and adapter_path:
-            model_vocab_size = model.get_input_embeddings().weight.size(0)
-            tokenzier_vocab_size = len(tokenizer)
-            logger.info(f"Vocab of the base model: {model_vocab_size}")
-            logger.info(f"Vocab of the tokenizer: {tokenzier_vocab_size}")
-
-            if model_vocab_size != tokenzier_vocab_size:
-                assert tokenzier_vocab_size > model_vocab_size
-                logger.info("Resize model embeddings to fit tokenizer")
-                model.resize_token_embeddings(tokenzier_vocab_size)
-
-        if use_ptuning_v2:
-            prefix_state_dict = torch.load(os.path.join(adapter_path, "pytorch_model.bin"))
-            new_prefix_state_dict = {}
-            for k, v in prefix_state_dict.items():
-                if k.startswith("transformer.prefix_encoder."):
-                    new_prefix_state_dict[k[len("transformer.prefix_encoder."):]] = v
-            model.transformer.prefix_encoder.load_state_dict(new_prefix_state_dict)
-            model.transformer.prefix_encoder.float()
-        else:
-            model = self.load_lora_model(model, adapter_path, model_kwargs)
-
         return model
 
     def post_tokenizer(self, tokenizer):

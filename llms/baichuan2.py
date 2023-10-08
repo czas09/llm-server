@@ -19,8 +19,26 @@ class Baichuan2ModelAdapter(BaseModelAdapter):
         return "baichuan2"
     
 
-class Baichuan2PromptAdapter(BasePromptAdapter): 
-    pass
+class BaichuanPromptAdapter(BasePromptAdapter): 
+    """
+    Baichuan2对话模型的提示词适配
+
+    参考链接：
+    Baichuan2-7B-Chat
+    Baichuan2-13B-Chat: TODO
+
+    Baichuan2对话模型的提示词格式如下所示：
+    <reserved_102>{query0}<reserved_103>{response0}<reserved_102>{query1}<reserved_103>
+    """
+
+    def __init__(self): 
+        self.system_prompt = ""    # Baichuan2对话模型没有支持系统提示词
+        self.user_prompt = "<reserved_106>{}<reserved_107>"
+        self.assistant_prompt = "{}"
+        self.stop = {
+            "strings": ["<reserved_106>", "<reserved_107>"],
+            "token_ids": [195, 196],
+        }
 
 
 class Baichuan2(BaseModel): 
