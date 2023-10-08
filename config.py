@@ -28,3 +28,8 @@ USING_PTUNING_V2 = configs.get("MODEL", "")
 CONTEXT_LEN = configs.get("MODEL", "")
 STREAM_INTERVERL = configs.get("MODEL", "")
 PROMPT_NAME = configs.get("MODEL", "")
+
+# ==============================================================================
+# 推理引擎相关
+# ==============================================================================
+SERVING_ENGINE = configs.get("SERVING", "serving_engine")

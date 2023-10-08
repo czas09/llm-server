@@ -9,7 +9,7 @@ from vllm.outputs import RequestOutput
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
 
-from models import MODEL
+from llms import MODEL
 from config import (
     MODEL_NAME, 
     MODEL_PATH

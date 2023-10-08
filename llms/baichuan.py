@@ -1,17 +1,24 @@
+# Baichuan-13B-Chat
+
 from typing import Optional
 
 from peft import PeftModel
 
-from models.base import BaseModel, BaseModelAdapter, BasePromptAdapter
-from config import MODEL_NAME
+from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from config import MODEL_NAME, MODEL_PATH
+
 
 class BaichuanModelAdapter(BaseModelAdapter): 
     """
-    Baichuan对话模型的LoRA适配
+    Baichuan对话模型的模型适配
     """
     
     def load_lora_model(self, model_path, adapter_path, model_kwargs): 
-        return PeftModel.from_pretrained(model_path, adapter_path))
+        return PeftModel.from_pretrained(model_path, adapter_path)
+    
+    @property
+    def model_type(self): 
+        return "baichuan"
 
 
 class BaichuanPromptAdapter(BasePromptAdapter): 
@@ -52,6 +59,8 @@ class Baichuan(BaseModel):
     
     def load_model(): 
         raise NotImplementedError
+    
+
 
 
 def get_baichuan_adapter(model_name: str): 

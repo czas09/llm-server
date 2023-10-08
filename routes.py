@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from server import CHAT_MODEL
+from models.chat_model import CHAT_MODEL
 from config import (
     MODEL_NAME, 
     MODEL_PATH
@@ -77,9 +77,9 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
     # 处理停止词：stop 和 stop_token_ids
     # stop settings
     stop, stop_token_ids = [], []
-    if MODEL.stop is not None: 
-        stop_token_ids = MODEL.stop.get("token_ids", [])
-        stop = MODEL.stop.get("strings", [])
+    if CHAT_MODEL.stop is not None: 
+        stop_token_ids = CHAT_MODEL.stop.get("token_ids", [])
+        stop = CHAT_MODEL.stop.get("strings", [])
     
     request.stop = request.stop or []
     if isinstance(request.stop, str): 
@@ -111,7 +111,7 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
     usage = UsageInfo()
     total_usage = 0
     for i in range(request.n): 
-        batch_contents = MODEL.generate_gate(gen_params)
+        batch_contents = CHAT_MODEL.generate_gate(gen_params)
         
         choices = []
         for content in batch_messages: 

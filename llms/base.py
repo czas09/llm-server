@@ -1,21 +1,107 @@
+import json
+import os
+import sys
+from typing import List, Optional
+
+import torch
+from loguru import logger
+from peft import PeftModel
+from tqdm import tqdm
+from transformers import (
+    AutoModel, 
+    AutoConfig, 
+    AutoTokenizer, 
+    AutoModelForCausalLM, 
+    BitsAndBytesConfig, 
+)
+from transformers.utils.versions import require_version
+
+if sys.version_info >= (3, 9): 
+    from functools import cache
+else: 
+    from functools import lru_cache as cache
+
+
+
+from protocol import ChatMessage, Role
+
+from config import (
+    MODEL_NAME, 
+    MODEL_PATH, 
+    ADAPTER_MODEL_PATH, 
+    QUANTIZE, 
+    DEVICE, 
+    DEVICE_MAP, 
+    NUM_GPUS, 
+    LOAD_IN_8BIT, 
+    LOAD_IN_4BIT, 
+    USING_PTUNING_V2, 
+    CONTEXT_LEN, 
+    STREAM_INTERVERL, 
+    PROMPT_NAME, 
+)
+
+
+class BasePromptAdapter: 
+    """对话模型提示词适配"""
+
+    def __init__(self): 
+        self.system_prompt: str = "You ara a helpful assistant!\n"
+        self.user_prompt: str = "Human: {}\nAssistant: "
+        self.assistant: str = "{}\n"
+        self.stop = None
+    
+    def construct_prompt(self, messages: List[ChatMessage]) -> str: 
+        """Covert messages into a prompt string.
+
+        Args:
+            messages (List[ChatMessage]): The conversation message in previous runs.
+
+        Returns:
+            string: formated prompt.
+        """
+        prompt = self.system_prompt
+        user_content = []
+        for message in messages: 
+            role, content = message.role, message.content
+            if role in [Role.USER, Role.SYSTEM]: 
+                user_content.append(content)
+            elif role == Role.ASSISTANT: 
+                prompt += self.user_prompt.format("\n".join(user_content))
+                prompt += self.assistant_prompt.format(content)
+                user_content = []
+            else: 
+                raise ValueError(f"Unknown role: {role}")
+        
+        if user_content: 
+            prompt += self.user_prompt.format("\n".join(user_content))
+        
+        return prompt
+
 
 class BaseModelAdapter: 
-    """The base and the default model adapter."""
+    """模型适配（LoRA）"""
     
-    model_names = []
+    def load_model(self, model_path: str, adapter_path: Optional[str] = None, **kwargs): 
+        """使用Transformers作为后端引擎加载本地模型文件
+        TODO(@zyw): 每个模型各自实现
+        
+        加载 tokenizer
+        数据类型
+        量化 load_in_8bit load_in_4bit
+        模型配置 autoconfig
+        lora和adapter
+        加载模型
+        执行量化
 
-    def match(self, model_name) -> bool: 
-        return any(m in model_name for m in self.model_names) if self.model_names else True
-    
-    def load_model(self, model_path: str, adapter_model: Optional[str] = None, **kwargs): 
-        """ 加载本地模型文件 """
+        """
         model_path = self.default_model_path if model_path is None else model_path
         tokenizer_kwargs = {"trust_remote_code": True, "use_fast": False}
         tokenizer_kwargs.update(self.tokenizer_kwargs)
 
-        if adapter_model is not None: 
+        if adapter_path is not None: 
             try: 
-                tokenizer = self.tokenizer_class.from_pretrained(adapter_model, **tokenizer_kwargs)
+                tokenizer = self.tokenizer_class.from_pretrained(adapter_path, **tokenizer_kwargs)
             except: 
                 tokenizer = self.tokenizer_class.from_pretrained(model_path, **tokenizer_kwargs)
         else: 
@@ -64,8 +150,8 @@ class BaseModelAdapter:
         config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
 
         use_ptuning_v2 = kwargs.get("use_ptuning_v2", False)
-        if use_ptuning_v2 and adapter_model:
-            prefix_encoder_file = open(f'{adapter_model}/config.json', 'r')
+        if use_ptuning_v2 and adapter_path:
+            prefix_encoder_file = open(f'{adapter_path}/config.json', 'r')
             prefix_encoder_config = json.loads(prefix_encoder_file.read())
             prefix_encoder_file.close()
 
@@ -87,8 +173,8 @@ class BaseModelAdapter:
         tokenizer = self.post_tokenizer(tokenizer)
         is_chatglm = "chatglm" in str(type(model))
 
-        if adapter_model is not None:
-            model = self.load_adapter_model(model, tokenizer, adapter_model, is_chatglm, config_kwargs, **kwargs)
+        if adapter_path is not None:
+            model = self.load_adapter_model(model, tokenizer, adapter_path, is_chatglm, config_kwargs, **kwargs)
 
         if is_chatglm or "baichuan" in str(type(model)) or "xverse" in str(type(model)):
             quantize = kwargs.get("quantize", None)
@@ -104,16 +190,17 @@ class BaseModelAdapter:
 
         return model, tokenizer
     
-    def load_lora_model(self, model, adapter_model, model_kwargs): 
-        return PeftModel.from_pretrained(
+    def load_lora_model(self, model, adapter_path, model_kwargs): 
+        model = PeftModel.from_pretrained(
             model, 
-            adapter_model, 
+            adapter_path, 
             torch_dtype=model_kwargs.get("torch_dtype", torch.float16), 
         )
+        return model
 
-    def load_adapter_model(self, model, tokenizer, adapter_model, is_chatglm, model_kwargs, **kwargs):
+    def load_adapter_model(self, model, tokenizer, adapter_path, is_chatglm, model_kwargs, **kwargs):
         use_ptuning_v2 = kwargs.get("use_ptuning_v2", False)
-        if not is_chatglm and adapter_model:
+        if not is_chatglm and adapter_path:
             model_vocab_size = model.get_input_embeddings().weight.size(0)
             tokenzier_vocab_size = len(tokenizer)
             logger.info(f"Vocab of the base model: {model_vocab_size}")
@@ -125,7 +212,7 @@ class BaseModelAdapter:
                 model.resize_token_embeddings(tokenzier_vocab_size)
 
         if use_ptuning_v2:
-            prefix_state_dict = torch.load(os.path.join(adapter_model, "pytorch_model.bin"))
+            prefix_state_dict = torch.load(os.path.join(adapter_path, "pytorch_model.bin"))
             new_prefix_state_dict = {}
             for k, v in prefix_state_dict.items():
                 if k.startswith("transformer.prefix_encoder."):
@@ -133,12 +220,25 @@ class BaseModelAdapter:
             model.transformer.prefix_encoder.load_state_dict(new_prefix_state_dict)
             model.transformer.prefix_encoder.float()
         else:
-            model = self.load_lora_model(model, adapter_model, model_kwargs)
+            model = self.load_lora_model(model, adapter_path, model_kwargs)
 
         return model
 
     def post_tokenizer(self, tokenizer):
+        # TODO(@zyw): Tokenization后处理
         return tokenizer
+    
+    @property
+    def model_type(self): 
+        raise NotImplementedError
+
+    @property
+    def model_name(self): 
+        return MODEL_NAME
+    
+    @property
+    def model_path(self): 
+        return MODEL_PATH
 
     @property
     def model_class(self):
@@ -156,27 +256,11 @@ class BaseModelAdapter:
     def tokenizer_kwargs(self):
         return {}
 
-    @property
-    def default_model_name_or_path(self):
-        return "fhxk/fhllm"
 
+class BaseModel: 
 
-# A global registry for all model adapters
-model_adapters: List[BaseModelAdapter] = []
-
-
-def register_model_adapter(cls):
-    """Register a model adapter."""
-    model_adapters.append(cls())
-
-
-@cache
-def get_model_adapter(model_name: str) -> BaseModelAdapter: 
-    """Get a model adapter for a model name."""
-    for adapter in model_adapters:
-        if adapter.match(model_name):
-            return adapter
-    raise ValueError(f"No valid model adapter for {model_name}")
+    def __init__(self): 
+        raise NotImplementedError
 
 
 def load_model(

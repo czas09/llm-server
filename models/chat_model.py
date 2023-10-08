@@ -4,25 +4,31 @@ from config import MODEL_NAME
 def get_chat_model(): 
     """加载对话模型"""
 
-    if "chatglm" in MODEL_NAME:    # TODO(zyw)
-        from models.chatglm import load_chatglm_model
-        model = load_chatglm_model()
+    if "chatglm2" in MODEL_NAME: 
+        pass
 
-    elif "baichuan" in MODEL_NAME:    # TODO(zyw)
-        from models.baichuan import load_baichuan_model
-        from models.baichuan import Baichuan
+    elif "chatglm" in MODEL_NAME:    # TODO(zyw)
+        from llms.chatglm import load_chatglm_model
+        model = load_chatglm_model()
+    
+    elif "baichuan2" in MODEL_NAME: 
+        from llms import Baichuan2
+        model = Baichuan2()
+
+    elif "baichuan" in MODEL_NAME: 
+        from llms import Baichuan
         model = Baichuan()
 
     elif "qwen" in MODEL_NAME:    # TODO(zyw)
-        from models.qwen import load_qwen_model
+        from llms.qwen import load_qwen_model
         model = load_qwen_model()
 
     elif "internlm" in MODEL_NAME:    # TODO(zyw)
-        from models.internlm import load_internlm_model
+        from llms.internlm import load_internlm_model
         model  = load_internlm_model()
 
     elif "xverse" in MODEL_NAME:    # TODO(zyw)
-        from models.xverse import load_xverse_model
+        from llms.xverse import load_xverse_model
         model = load_xverse_model()
     
     return model
