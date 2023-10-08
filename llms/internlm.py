@@ -2,9 +2,10 @@
 # InternLM-Chat-7B-v1.1
 # InternLM-Chat-20B
 
+import gc
 import json
 import os.path
-from typing import Optional, List
+from typing import Optional, List, Iterable
 
 import torch
 from transformers import (
@@ -20,12 +21,12 @@ from loguru import logger
 
 from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
-from utils import generate_stream, generate_stream_v2, server_error_msg
+from utils.utils import generate_stream, generate_stream_v2, server_error_msg, prepare_logits_processor, is_partial_stop
 from config import (
     MODEL_NAME, MODEL_PATH, DEVICE, CONTEXT_LEN, 
     STREAM_INTERVERL, USE_STREAMER_V2
 )
-from constants import ErrorCode
+from utils.constants import ErrorCode
 
 
 class InternLMModelAdapter(BaseModelAdapter): 
@@ -255,7 +256,7 @@ class InternLM(BaseChatModel):
             gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
         
         try: 
-            for output in generate_stream(
+            for output in self._generate_stream(
             self.model, 
             self.tokenizer, 
             gen_params, 
@@ -316,3 +317,164 @@ class InternLM(BaseChatModel):
                 "error_code": ErrorCode.INTERNAL_ERROR,
             }
             yield response_dict
+    
+    @torch.inference_mode()
+    def _generate_stream(
+        model,
+        tokenizer,
+        gen_params,
+        device: str,
+        context_len: int,
+        stream_interval: int = 2,
+    ): 
+        prompt = gen_params["prompt"]
+        temperature = float(gen_params.get("temperature", 1.0))
+        repetition_penalty = float(gen_params.get("repetition_penalty", 1.0))
+        top_p = float(gen_params.get("top_p", 1.0))
+        top_k = int(gen_params.get("top_k", -1))  # -1 means disable
+        max_new_tokens = int(gen_params.get("max_tokens", 256))
+        echo = bool(gen_params.get("echo", True))
+        stop_str = gen_params.get("stop", None)
+
+        stop_token_ids = gen_params.get("stop_token_ids", None) or []
+        if tokenizer.eos_token_id not in stop_token_ids:
+            stop_token_ids.append(tokenizer.eos_token_id)
+
+        infilling = gen_params.get("infilling", False)
+        suffix_first = gen_params.get("suffix_first", False)
+
+        logits_processor = prepare_logits_processor(
+            temperature, repetition_penalty, top_p, top_k
+        )
+
+        if infilling:
+            input_ids = tokenizer(prompt, suffix_first=suffix_first).input_ids
+            stop_token_ids.append(tokenizer.eot_id)
+        else: 
+            input_ids = tokenizer(prompt).input_ids
+        
+        max_src_len = context_len - max_new_tokens - 1
+        input_ids = input_ids[-max_src_len:]
+        output_ids = list(input_ids)
+        input_echo_len = len(input_ids)
+
+        past_key_values = None
+        sent_interrupt = False
+        for i in range(max_new_tokens):
+            if i == 0:  # prefill
+                out = model(torch.as_tensor([input_ids], device=device), use_cache=True)
+                logits = out.logits
+                past_key_values = out.past_key_values
+            else:  # decoding
+                out = model(
+                    input_ids=torch.as_tensor(
+                        [[token] if not sent_interrupt else output_ids], device=device
+                    ),
+                    use_cache=True,
+                    past_key_values=past_key_values if not sent_interrupt else None,
+                )
+                sent_interrupt = False
+                logits = out.logits
+                past_key_values = out.past_key_values
+            
+            if logits_processor:
+                if repetition_penalty > 1.0:
+                    tmp_output_ids = torch.as_tensor([output_ids], device=logits.device)
+                else:
+                    tmp_output_ids = None
+                last_token_logits = logits_processor(tmp_output_ids, logits[:, -1, :])[0]
+            else:
+                last_token_logits = logits[0, -1, :]
+
+            if temperature < 1e-5 or top_p < 1e-8:  # greedy
+                _, indices = torch.topk(last_token_logits, 2)
+                tokens = [int(index) for index in indices.tolist()]
+            else:
+                probs = torch.softmax(last_token_logits, dim=-1)
+                indices = torch.multinomial(probs, num_samples=2)
+                tokens = [int(token) for token in indices.tolist()]
+
+            token = tokens[0]
+            output_ids.append(token)
+
+            if token in stop_token_ids:
+                stopped = True
+            else:
+                stopped = False
+
+            # Yield the output tokens
+            if i % stream_interval == 0 or i == max_new_tokens - 1 or stopped:
+                if echo:
+                    tmp_output_ids = output_ids
+                    rfind_start = len(prompt) if isinstance(prompt, str) else 0
+                else:
+                    tmp_output_ids = output_ids[input_echo_len:]
+                    rfind_start = 0
+
+                output = tokenizer.decode(
+                    tmp_output_ids,
+                    skip_special_tokens=True, 
+                    spaces_between_special_tokens=False,
+                    clean_up_tokenization_spaces=True,
+                )
+
+                partially_stopped = False
+                if stop_str:
+                    if isinstance(stop_str, str):
+                        pos = output.rfind(stop_str, rfind_start)
+                        if pos != -1:
+                            output = output[:pos]
+                            stopped = True
+                        else:
+                            partially_stopped = is_partial_stop(output, stop_str)
+                    elif isinstance(stop_str, Iterable):
+                        for each_stop in stop_str:
+                            pos = output.rfind(each_stop, rfind_start)
+                            if pos != -1:
+                                output = output[:pos]
+                                stopped = True
+                                break
+                            else:
+                                partially_stopped = is_partial_stop(output, each_stop)
+                                if partially_stopped:
+                                    break
+                    else:
+                        raise ValueError("Invalid stop field type.")
+
+                # Prevent yielding partial stop sequence
+                if not partially_stopped:
+                    yield {
+                        "text": output,
+                        "usage": {
+                            "prompt_tokens": input_echo_len,
+                            "completion_tokens": i,
+                            "total_tokens": input_echo_len + i,
+                        },
+                        "finish_reason": None,
+                    }
+
+            if stopped:
+                break
+
+        # Finish stream event, which contains finish reason
+        if i == max_new_tokens - 1:
+            finish_reason = "length"
+        elif stopped:
+            finish_reason = "stop"
+        else:
+            finish_reason = None
+
+        yield {
+            "text": output,
+            "usage": {
+                "prompt_tokens": input_echo_len,
+                "completion_tokens": i,
+                "total_tokens": input_echo_len + i,
+            },
+            "finish_reason": finish_reason,
+        }
+
+        # Clean
+        del past_key_values, out
+        gc.collect()
+        torch.cuda.empty_cache()

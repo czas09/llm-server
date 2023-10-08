@@ -26,7 +26,7 @@ from protocol import (
     UsageInfo,
     Role,
 )
-from utils import check_requests, create_error_response, ErrorCode
+from utils.utils import check_requests, create_error_response, ErrorCode
 
 
 logger.add("./service.log", level='INFO')
