@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from models import MODEL
+from server import CHAT_MODEL
 from config import (
     MODEL_NAME, 
     MODEL_PATH
