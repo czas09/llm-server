@@ -96,50 +96,139 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
     request.stop_token_ids = list(set(stop_token_ids + request.stop_token_ids))
 
     gen_params = dict(
-        model=request.model, 
-        batch_prompts=batch_messages, 
+        model=request.model,
+        prompt=messages,
         temperature=request.temperature,
         top_p=request.top_p,
-        max_tokens=request.max_tokens or 1024,    # 
-        # echo=False,
+        max_tokens=request.max_tokens or 1024,
+        echo=False,
         stream=request.stream,
         stop_token_ids=request.stop_token_ids,
         stop=request.stop,
+        repetition_penalty=request.repetition_penalty,
+        # with_function_call=with_function_call,
     )
 
     logger.debug(f"==== request ====\n{gen_params}")
 
-    # if request.stream:
-    #     generator = chat_completion_stream_generator(request.model, gen_params, request.n)
-    #     return StreamingResponse(generator, media_type="text/event-stream")
+    if request.stream:
+        generator = chat_completion_stream_generator(request.model, gen_params, request.n)
+        return StreamingResponse(generator, media_type="text/event-stream")
     
-    batch_choices = []
+    choices = []
     usage = UsageInfo()
-    total_usage = 0
-    for i in range(request.n): 
-        batch_contents = CHAT_MODEL.generate_gate(gen_params)
-        
-        choices = []
-        for content in batch_messages: 
-            if content["error_code"]: 
-                pass    # 处理错误
+    for i in range(request.n):
+        content = CHAT_MODEL.chat(gen_params)
+        if content["error_code"] != 0:
+            return create_error_response(content["error_code"], content["text"])
 
-            finish_reason = "stop"
-            message = ChatMessage(role=Role.ASSISTANT, content=content["text"])
-
-            each_usage = UsageInfo.parse_obj(content["usage"])
-            for usage_key, usage_value in each_usage.dict().items():
-                setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
-            # total_usage += each_usage
+        finish_reason = "stop"
+        # if with_function_call:
+        #     message, finish_reason = build_chat_message(content["text"], request.functions)
+        # else:
+        #     message = ChatMessage(role=Role.ASSISTANT, content=content["text"])
+        message = ChatMessage(role=Role.ASSISTANT, content=content["text"])
 
         choices.append(
             ChatCompletionResponseChoice(
-                index=i, 
-                batch_message=batch_messages, 
-                finish_reason=finish_reason
+                index=i,
+                message=message,
+                finish_reason=finish_reason,
             )
         )
-        
-        batch_choices.append(choices)
 
-    return ChatCompletionResponse(model=request.model, batch_choices=batch_choices, usage=total_usage)
+        task_usage = UsageInfo.parse_obj(content["usage"])
+        for usage_key, usage_value in task_usage.dict().items():
+            setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
+
+    return ChatCompletionResponse(model=request.model, choices=choices, usage=usage)
+
+
+
+async def chat_completion_stream_generator(
+    model_name: str, gen_params: Dict[str, Any], n: int, raw_request: Request
+) -> Generator[str, Any, None]:
+    """
+    Event stream format:
+    https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+    """
+    _id = f"chatcmpl-{secrets.token_hex(12)}"
+    finish_stream_events = []
+    for i in range(n):
+        # First chunk with role
+        choice_data = ChatCompletionResponseStreamChoice(
+            index=i,
+            delta=DeltaMessage(role=Role.ASSISTANT),
+            finish_reason=None,
+        )
+        chunk = ChatCompletionStreamResponse(
+            id=_id, choices=[choice_data], model=model_name
+        )
+        yield f"data: {chunk.json(exclude_unset=True, ensure_ascii=False)}\n\n"
+
+        previous_text = ""
+        # with_function_call = gen_params.get("with_function_call", False)
+        found_action_name = False
+        for content in CHAT_MODEL.stream_chat(gen_params):
+            if await raw_request.is_disconnected():
+                asyncio.current_task().cancel()
+                return
+
+            if content["error_code"] != 0:
+                yield f"data: {json.dumps(content, ensure_ascii=False)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            decoded_unicode = content["text"].replace("\ufffd", "")
+            delta_text = decoded_unicode[len(previous_text):]
+            previous_text = decoded_unicode
+
+            if len(delta_text) == 0:
+                delta_text = None
+
+            messages = []
+            # if with_function_call:
+            #     if found_action_name:
+            #         messages.append(build_delta_message(delta_text, "arguments"))
+            #         finish_reason = "function_call"
+            #     else:
+            #         if previous_text.rfind("\nFinal Answer:") > 0:
+            #             with_function_call = False
+
+            #         if previous_text.rfind("\nAction Input:") == -1:
+            #             continue
+            #         else:
+            #             messages.append(build_delta_message(previous_text))
+            #             pos = previous_text.rfind("\nAction Input:") + len("\nAction Input:")
+            #             messages.append(build_delta_message(previous_text[pos:], "arguments"))
+
+            #             found_action_name = True
+            #             finish_reason = "function_call"
+            # else:
+            #     messages = [DeltaMessage(content=delta_text, role=Role.ASSISTANT)]
+            #     finish_reason = content.get("finish_reason", "stop")
+            messages = [DeltaMessage(content=delta_text, role=Role.ASSISTANT)]
+            finish_reason = content.get("finish_reason", "stop")
+
+            chunks = []
+            for m in messages:
+                choice_data = ChatCompletionResponseStreamChoice(
+                    index=i,
+                    delta=m,
+                    finish_reason=finish_reason,
+                )
+                chunks.append(ChatCompletionStreamResponse(id=_id, choices=[choice_data], model=model_name))
+
+            if delta_text is None:
+                if content.get("finish_reason", None) is not None:
+                    finish_stream_events.extend(chunks)
+                continue
+
+            for chunk in chunks:
+                yield f"data: {chunk.json(exclude_unset=True, ensure_ascii=False)}\n\n"
+
+    # There is not "content" field in the last delta message, so exclude_none to exclude field "content".
+    for finish_chunk in finish_stream_events:
+        yield f"data: {finish_chunk.json(exclude_none=True, ensure_ascii=False)}\n\n"
+
+    yield "data: [DONE]\n\n"

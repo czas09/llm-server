@@ -21,8 +21,6 @@ if sys.version_info >= (3, 9):
 else: 
     from functools import lru_cache as cache
 
-
-
 from protocol import ChatMessage, Role
 
 from config import (

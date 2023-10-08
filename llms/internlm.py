@@ -294,9 +294,8 @@ class InternLM(BaseChatModel):
         if isinstance(gen_params["prompt"], list):
             gen_params["prompt"] = self.generate_prompt(gen_params["prompt"])
 
-
         try:
-            yield from generate_stream_v2(
+            yield from self._generate_stream_v2(
                 self.model,
                 self.tokenizer,
                 gen_params,
@@ -478,3 +477,6 @@ class InternLM(BaseChatModel):
         del past_key_values, out
         gc.collect()
         torch.cuda.empty_cache()
+    
+    def _generate_stream_v2(): 
+        raise NotImplementedError

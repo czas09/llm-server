@@ -60,6 +60,12 @@ class UsageInfo(BaseModel):
 #     parameters: Optional[Any] = None
 
 
+# class FunctionCallResponse(BaseModel):
+#     name: Optional[str] = None
+#     arguments: Optional[str] = None
+#     thought: Optional[str] = None
+
+
 class ChatMessage(BaseModel):
     role: str
     content: str = None
@@ -76,7 +82,7 @@ class ChatCompletionRequest(BaseModel):
     n: Optional[int] = 1
     max_tokens: Optional[int] = None
     stop: Optional[Union[str, List[str]]] = None
-    # stream: Optional[bool] = False    # @zyw: 暂时不支持
+    stream: Optional[bool] = False
     presence_penalty: Optional[float] = 0.0
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
@@ -85,12 +91,14 @@ class ChatCompletionRequest(BaseModel):
 
     # Additional parameters support for stop generation
     stop_token_ids: Optional[List[int]] = None
+    repetition_penalty: Optional[float] = 1.1
 
-    # # Additional parameters supported by vLLM    # TODO(@zyw)
-    # best_of: Optional[int] = None
-    # top_k: Optional[int] = -1
-    # ignore_eos: Optional[bool] = False
-    # use_beam_search: Optional[bool] = False
+    # Additional parameters supported by vLLM
+    best_of: Optional[int] = None
+    top_k: Optional[int] = -1
+    ignore_eos: Optional[bool] = False
+    use_beam_search: Optional[bool] = False
+    skip_special_tokens: Optional[bool] = True
 
 
 class ChatCompletionResponseChoice(BaseModel):
@@ -116,16 +124,23 @@ class DeltaMessage(BaseModel):
     # function_call: Optional[FunctionCallResponse] = None
 
 
-# class ChatCompletionResponseStreamChoice(BaseModel):
-#     index: int
-#     delta: DeltaMessage
-#     finish_reason: Optional[Literal["stop", "length"]] = None
-#     # finish_reason: Optional[Literal["stop", "length", "function_call"]] = None
+class ChatCompletionResponseStreamChoice(BaseModel):
+    index: int
+    delta: DeltaMessage
+    finish_reason: Optional[Literal["stop", "length"]] = None
+    # finish_reason: Optional[Literal["stop", "length", "function_call"]] = None
 
 
-# class ChatCompletionStreamResponse(BaseModel):
-#     id: str = Field(default_factory=lambda: f"chatcmpl-{secrets.token_hex(12)}")
-#     object: str = "chat.completion.chunk"
-#     created: int = Field(default_factory=lambda: int(time.time()))
-#     model: str
-#     choices: List[ChatCompletionResponseStreamChoice]
+class ChatCompletionStreamResponse(BaseModel):
+    id: str = Field(default_factory=lambda: f"chatcmpl-{secrets.token_hex(12)}")
+    object: str = "chat.completion.chunk"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: List[ChatCompletionResponseStreamChoice]
+
+
+class EmbeddingsResponse(BaseModel):
+    object: str = "list"
+    data: List[Dict[str, Any]]
+    model: str
+    usage: UsageInfo
