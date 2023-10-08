@@ -9,7 +9,7 @@ configs.read("./configs.ini", encoding='utf-8')
 # ==============================================================================
 SERVICE_HOST = configs.get("SERVICE", "host")
 SERVICE_PORT = configs.getint("SERVICE", "port")
-API_PREFIX = configs.get("SERVICE", "prefix")
+API_PREFIX = configs.get("SERVICE", "prefix")    # "/v1"
 CHAT_ROUTE = configs.get("SERVICE", "chat_route")
 
 # ==============================================================================

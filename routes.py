@@ -31,7 +31,32 @@ from utils import check_requests, create_error_response, ErrorCode
 logger.add("./service.log", level='INFO')
 
 model_router = APIRouter()
-chat_router = APIRouter(prefix="/chat")
+chat_router = APIRouter()                    # 仿照 ChatGLM 风格接口：/chat, /stream chat, /batch chat
+openai_router = APIRouter(prefix="/chat")    # OpenAI API 风格接口：/v1/models, /v1/chat/completions
+
+
+# ==============================================================================
+# 仿照 ChatGLM 风格接口
+# ==============================================================================
+
+@model_router.post("/chat")
+async def chat(): 
+    raise NotImplementedError
+
+
+@model_router.post("/stream_chat")
+async def stream_chat(): 
+    raise NotImplementedError
+
+
+@model_router.post("/batch_chat")
+async def batch_chat(): 
+    raise NotImplementedError
+
+
+# ==============================================================================
+# OpenAI API 风格接口
+# ==============================================================================
 
 @model_router.get("/models")
 async def show_available_models() -> ModelList: 
@@ -40,7 +65,7 @@ async def show_available_models() -> ModelList:
     return ModelList(data=[ModelCard(id=MODEL_NAME, root=MODEL_NAME)])
 
 
-@chat_router.post("/completions")
+@openai_router.post("/completions")
 async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse: 
     """Creates a completion for the chat message"""
     # error_check_ret = check_requests(request)
