@@ -82,13 +82,19 @@ class BasePromptAdapter:
 class BaseModelAdapter: 
     """模型适配（LoRA）"""
     
-    model_names = []
-
-    def match(self, model_name) -> bool: 
-        return any(m in model_name for m in self.model_names) if self.model_names else True
-    
     def load_model(self, model_path: str, adapter_model: Optional[str] = None, **kwargs): 
-        """ 加载本地模型文件 """
+        """使用HF Transformers作为后端引擎加载本地模型文件
+        TODO(@zyw): 每个模型各自实现
+        
+        加载 tokenizer
+        数据类型
+        量化 load_in_8bit load_in_4bit
+        模型配置 autoconfig
+        lora和adapter
+        加载模型
+        执行量化
+
+        """
         model_path = self.default_model_path if model_path is None else model_path
         tokenizer_kwargs = {"trust_remote_code": True, "use_fast": False}
         tokenizer_kwargs.update(self.tokenizer_kwargs)

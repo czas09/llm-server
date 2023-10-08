@@ -42,12 +42,13 @@ class Baichuan(BaseModel):
     
     def get_model_adapter(): 
         """获取模型适配"""
-        raise NotImplementedError
+        baichuan_model_adapter = BaichuanModelAdapter()
+        return baichuan_model_adapter
     
     def get_prompt_adapter(): 
         """获取提示词适配"""
         baichuan_prompt_adapter = BaichuanPromptAdapter()
-        raise NotImplementedError
+        return baichuan_prompt_adapter
     
     def load_model(): 
         raise NotImplementedError
