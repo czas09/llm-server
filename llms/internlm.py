@@ -292,7 +292,7 @@ class InternLM(BaseChatModel):
     
     def stream_chat_v2(self, gen_params): 
         if isinstance(gen_params["prompt"], list):
-            gen_params["prompt"] = self.generate_prompt(gen_params["prompt"])
+            gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
 
         try:
             yield from self._generate_stream_v2(
