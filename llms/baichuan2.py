@@ -1,8 +1,23 @@
-from typing import Optional
+# Baichuan2-7B-Chat
+# Baichuan2-13B-Chat
 
+import json
+from typing import Optional, List
+
+import torch
+from transformers import (
+    AutoModel,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+)
+from transformers.utils.versions import require_version
 from peft import PeftModel
+from loguru import logger
 
 from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from protocol import ChatMessage, Role
 from config import MODEL_NAME, MODEL_PATH
 
 

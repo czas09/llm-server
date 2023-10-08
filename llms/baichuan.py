@@ -1,10 +1,22 @@
 # Baichuan-13B-Chat
 
-from typing import Optional
+import json
+from typing import Optional, List
 
+import torch
+from transformers import (
+    AutoModel,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+)
+from transformers.utils.versions import require_version
 from peft import PeftModel
+from loguru import logger
 
 from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from protocol import ChatMessage, Role
 from config import MODEL_NAME, MODEL_PATH
 
 
@@ -60,24 +72,3 @@ class Baichuan(BaseModel):
     def load_model(): 
         raise NotImplementedError
     
-
-
-
-def get_baichuan_adapter(model_name: str): 
-
-
-# def load_baichuan_model(
-#         model_name: str, 
-#         model_path: str, 
-#         adapter_model_path: Optional[str] = None, 
-#         quantize: Optional[int] = 16,    # 4, 8 or False
-#         device: Optional[str] = 'device', 
-# ): 
-def load_baichuan_model(): 
-    model_name = model_name.lower()
-
-    baichuan_adapter = get_baichuan_adapter(MODEL_NAME)
-    baichuan_model = baichuan_adapter.load_model(
-
-    )
-    raise NotImplementedError

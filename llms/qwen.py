@@ -1,10 +1,20 @@
 # Qwen-7B-Chat
 # Qwen-14B-Chat
 
+import json
 from typing import Optional, List
 
-from transformers import AutoModel
+import torch
+from transformers import (
+    AutoModel,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+)
+from transformers.utils.versions import require_version
 from peft import PeftModel
+from loguru import logger
 
 from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
@@ -15,6 +25,8 @@ class QwenModelAdapter(BaseModelAdapter):
     """
     InternLM对话模型的模型适配
     """
+
+
     
     @property
     def model_type(self): 
