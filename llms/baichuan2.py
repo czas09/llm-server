@@ -16,7 +16,7 @@ from transformers.utils.versions import require_version
 from peft import PeftModel
 from loguru import logger
 
-from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
 from config import MODEL_NAME, MODEL_PATH
 
@@ -56,5 +56,5 @@ class BaichuanPromptAdapter(BasePromptAdapter):
         }
 
 
-class Baichuan2(BaseModel): 
+class Baichuan2(BaseChatModel): 
     pass

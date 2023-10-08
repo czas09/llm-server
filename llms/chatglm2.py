@@ -15,7 +15,7 @@ from transformers.utils.versions import require_version
 from peft import PeftModel
 from loguru import logger
 
-from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
 from config import MODEL_NAME, MODEL_PATH
 

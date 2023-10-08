@@ -18,9 +18,14 @@ from transformers.utils.versions import require_version
 from peft import PeftModel
 from loguru import logger
 
-from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
-from config import MODEL_NAME, MODEL_PATH
+from utils import generate_stream, generate_stream_v2, server_error_msg
+from config import (
+    MODEL_NAME, MODEL_PATH, DEVICE, CONTEXT_LEN, 
+    STREAM_INTERVERL, USE_STREAMER_V2
+)
+from constants import ErrorCode
 
 
 class InternLMModelAdapter(BaseModelAdapter): 
@@ -28,7 +33,7 @@ class InternLMModelAdapter(BaseModelAdapter):
     InternLM对话模型的模型适配
     """
 
-    def load_model(self, 
+    def load_model_tokenizer(self, 
                    model_path: str = MODEL_PATH, 
                    adapter_path: Optional[str] = None, 
                    **kwargs): 
@@ -215,3 +220,99 @@ class InternLMPromptAdapter(BasePromptAdapter):
             prompt += f"[Round {i}]\n\n{self.user_prompt.format(u_content)}"
 
         return prompt
+
+
+class InternLM(BaseChatModel): 
+    """InternLM对话模型"""
+
+    def __init__(self): 
+        self.model, self.tokenizer = self._get_model_tokenizer()
+        self.model_adapter: InternLMModelAdapter = self._get_model_adapter()
+        self.prompt_adapter: InternLMPromptAdapter = self._get_prompt_adapter()
+        self.device = DEVICE
+        self.model_name = MODEL_NAME
+        # self.prompt_name = 
+        self.context_len: Optional[int] = CONTEXT_LEN
+        self.stream_interval: Optional[int] = STREAM_INTERVERL
+        self.use_streamer_v2: Optional[bool] = USE_STREAMER_V2
+        self.fix_tokenizer()
+    
+    def _get_model_tokenizer(self): 
+        return self.model_adapter.load_model_tokenizer()
+
+    def _get_model_adapter(self) -> InternLMModelAdapter: 
+        """获取模型适配"""
+        internlm_model_adapter = InternLMModelAdapter()
+        return internlm_model_adapter
+    
+    def _get_prompt_adapter(self) -> InternLMPromptAdapter: 
+        """获取提示词适配"""
+        internlm_prompt_adapter = InternLMPromptAdapter()
+        return internlm_prompt_adapter
+    
+    def stream_chat_v1(self, gen_params): 
+        if isinstance(gen_params["prompt"], list): 
+            gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
+        
+        try: 
+            for output in generate_stream(
+            self.model, 
+            self.tokenizer, 
+            gen_params, 
+            self.device, 
+            self.context_len, 
+            self.stream_interval, 
+        ): 
+                response_dict = {
+                    "text": output["text"], 
+                    "error_code": 0, 
+                }
+                if "usage" in output: 
+                    response_dict["usage"] = output["usage"]
+                if "finish_reason" in output:
+                    response_dict["finish_reason"] = output["finish_reason"]
+                if "logprobs" in output:
+                    response_dict["logprobs"] = output["logprobs"]
+                yield response_dict
+
+        except torch.cuda.OutOfMemoryError as e:
+            response_dict = {
+                "text": f"{server_error_msg}\n\n({e})",
+                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
+            }
+            yield response_dict
+
+        except (ValueError, RuntimeError) as e:
+            response_dict = {
+                "text": f"{server_error_msg}\n\n({e})",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
+            yield response_dict
+    
+    def stream_chat_v2(self, gen_params): 
+        if isinstance(gen_params["prompt"], list):
+            gen_params["prompt"] = self.generate_prompt(gen_params["prompt"])
+
+
+        try:
+            yield from generate_stream_v2(
+                self.model,
+                self.tokenizer,
+                gen_params,
+                self.device,
+                self.context_len,
+            )
+
+        except torch.cuda.OutOfMemoryError as e:
+            response_dict = {
+                "text": f"{server_error_msg}\n\n({e})",
+                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
+            }
+            yield response_dict
+
+        except (ValueError, RuntimeError) as e:
+            response_dict = {
+                "text": f"{server_error_msg}\n\n({e})",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
+            yield response_dict

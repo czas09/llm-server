@@ -70,8 +70,7 @@ class ChatMessage(BaseModel):
 
 class ChatCompletionRequest(BaseModel):
     model: str
-    # messages: Optional[List[ChatMessage]]
-    batch_messages: List[List[ChatMessage]]    # @zyw: 支持并行调用
+    messages: Optional[List[ChatMessage]]
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1.0
     n: Optional[int] = 1
@@ -87,7 +86,7 @@ class ChatCompletionRequest(BaseModel):
     # Additional parameters support for stop generation
     stop_token_ids: Optional[List[int]] = None
 
-    # # Additional parameters supported by vLLM
+    # # Additional parameters supported by vLLM    # TODO(@zyw)
     # best_of: Optional[int] = None
     # top_k: Optional[int] = -1
     # ignore_eos: Optional[bool] = False

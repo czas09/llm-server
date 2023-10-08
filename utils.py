@@ -11,6 +11,11 @@ from transformers.generation.logits_process import (
 from protocol import ChatMessage, Role
 
 
+server_error_msg = (
+    "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
+)
+
+
 def parse_messages(messages: List[ChatMessage], split_role=Role.USER) -> Tuple[str, List[List[ChatMessage]]]:
     system, rounds = "", []
     r = []
@@ -77,3 +82,11 @@ def get_context_length(config) -> int:
         if val is not None:
             return int(rope_scaling_factor * val)
     return 2048
+
+
+def generate_stream(): 
+    raise NotImplementedError
+
+
+def generate_stream_v2(): 
+    raise NotImplementedError

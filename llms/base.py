@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import torch
 from loguru import logger
@@ -82,7 +82,7 @@ class BasePromptAdapter:
 class BaseModelAdapter: 
     """模型适配（LoRA）"""
     
-    def load_model(self, model_path: str, adapter_path: Optional[str] = None, **kwargs): 
+    def load_model_tokenizer(self, model_path: str, adapter_path: Optional[str] = None, **kwargs): 
         """使用Transformers作为后端引擎加载本地模型文件
         TODO(@zyw): 每个模型各自实现
         
@@ -231,98 +231,53 @@ class BaseModelAdapter:
         return {}
 
 
-class BaseModel: 
+class BaseChatModel: 
 
     def __init__(self): 
+        self.model = None
+        self.tokenizer = None
+        self.device = None
+        self.model_name = None
+        self.context_len = Optional[int] = None
+        self.stream_interval: Optional[int] = 2
+        # self.prompt_name: Optional[str] = None
+        # self.use_streamer_v2: Optional[bool] = False    # TODO(@zyw): Transformers提供的流式实现
+        self.model_adapter: BaseModelAdapter = None
+        self.prompt_adapter: BasePromptAdapter = None
+        raise NotImplementedError
+    
+    def fix_tokenizer(self): 
+        if self.tokenizer.eos_token_id is None:
+            self.tokenizer.eos_token = "<|endoftext|>"
+            logger.info("Add eos token: {}".format(self.tokenizer.eos_token))
+
+        if self.tokenizer.pad_token_id is None:
+            if self.tokenizer.unk_token_id is not None:
+                self.tokenizer.pad_token = self.tokenizer.unk_token
+            else:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            logger.info("Add pad token: {}".format(self.tokenizer.pad_token))
+    
+    def construct_prompt(self, messages: List[ChatMessage]) -> Union[str, List[ChatMessage]]: 
+        return self.prompt_adapter.construct_prompt(messages) if self.construct_prompt else messages
+    
+    def chat(self, gen_params): 
+        for x in self.stream_chat(gen_params): 
+            pass
+        return x
+    
+    def stream_chat(self, gen_params): 
+        if not self.use_streamer_v2: 
+            yield from self.stream_chat_v1(gen_params)
+        else: 
+            yield from self.stream_chat_v2(gen_params)
+
+    def stream_chat_v1(self, gen_params): 
+        raise NotImplementedError
+    
+    def stream_chat_v2(self, gen_params): 
         raise NotImplementedError
 
-
-def load_model(
-    model_name: str, 
-    model_path: str, 
-    adapter_model: Optional[str] = None, 
-    quantize: Optional[int] = 16, 
-    device: Optional[str] = "cuda", 
-    load_in_8bit: Optional[bool] = False, 
-    **kwargs
-): 
-    model_name = model_name.lower()
-
-    # get model adapter
-    adapter = get_model_adapter(model_name)
-    model, tokenizer = adapter.load_model(
-        model_path,
-        adapter_model,
-        device=device,
-        quantize=quantize,
-        load_in_8bit=load_in_8bit,
-        **kwargs
-    )
-    return model, tokenizer
-
-
-class ChatGLMModelAdapter(BaseModelAdapter): 
-    """ https://github.com/THUDM/ChatGLM-6B """
-
-    model_names = ["chatglm"]
-
     @property
-    def model_class(self): 
-        return AutoModel
-    
-    @property
-    def default_model_name_or_path(self):
-        return "THUDM/chatglm2-6b"    # TODO(@zyw)
-    
-
-class BaichuanModelAdapter(BaseModelAdapter): 
-    """ https://github.com/baichuan-inc/Baichuan-13B """
-
-    model_names = ["baichuan"]
-
-    def load_lora_model(self, model, adapter_model, model_kwargs):
-        return PeftModel.from_pretrained(model, adapter_model)
-    
-    @property
-    def default_model_name_or_path(self):
-        return "baichuan-inc/Baichuan-13B-Chat"    # TODO(@zyw)
-
-
-class InternLMModelAdapter(BaseModelAdapter):
-    """ https://github.com/InternLM/InternLM """
-
-    model_names = ["internlm"]
-
-    @property
-    def default_model_name_or_path(self):
-        return "internlm/internlm-chat-7b"
-
-
-class QwenModelAdapter(BaseModelAdapter):
-    """ https://github.com/QwenLM/Qwen-7B """
-
-    model_names = ["qwen"]
-
-    @property
-    def default_model_name_or_path(self):
-        return "Qwen/Qwen-7B-Chat"
-    
-
-class XverseModelAdapter(BaseModelAdapter):
-    """ https://github.com/xverse-ai/XVERSE-13B """
-
-    model_names = ["xverse"]
-
-    @property
-    def default_model_name_or_path(self):
-        return "xverse/XVERSE-13B-Chat"
-
-
-register_model_adapter(ChatGLMModelAdapter)
-register_model_adapter(BaichuanModelAdapter)
-register_model_adapter(InternLMModelAdapter)
-register_model_adapter(QwenModelAdapter)
-register_model_adapter(XverseModelAdapter)
-
-# After all adapters, try the default base adapter.
-register_model_adapter(BaseModelAdapter)
+    def stop(self):
+        return self.prompt_adapter.stop if hasattr(self.prompt_adapter, "stop") else None

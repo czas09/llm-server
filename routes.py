@@ -1,8 +1,9 @@
+import asyncio
 import json
-import base64
+import secrets
 from typing import Generator, Dict, Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -68,11 +69,16 @@ async def show_available_models() -> ModelList:
 @openai_router.post("/completions")
 async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse: 
     """Creates a completion for the chat message"""
+    if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER, Role.FUNCTION]:
+        raise HTTPException(status_code=400, detail="Invalid request")
+
     # error_check_ret = check_requests(request)
     # if error_check_ret is not None:
     #     return error_check_ret
 
-    batch_messages = request.batch_messages
+    messages = request.messages
+
+    # TODO(@zyw): 为Qwen和InternLM模型实现Function call功能
 
     # 处理停止词：stop 和 stop_token_ids
     # stop settings

@@ -15,7 +15,7 @@ CHAT_ROUTE = configs.get("SERVICE", "chat_route")
 # ==============================================================================
 # 模型配置选项
 # ==============================================================================
-MODEL_NAME = configs.get("MODEL", "model_name")
+MODEL_NAME = configs.get("MODEL", "model_name").lower()
 MODEL_PATH = configs.get("MODEL", "model_path")
 ADAPTER_MODEL_PATH = configs.get("MODEL", "")
 QUANTIZE = configs.get("MODEL", "")
@@ -28,6 +28,7 @@ USING_PTUNING_V2 = configs.get("MODEL", "")
 CONTEXT_LEN = configs.get("MODEL", "")
 STREAM_INTERVERL = configs.get("MODEL", "")
 PROMPT_NAME = configs.get("MODEL", "")
+USE_STREAMER_V2 = configs.get("MODEL", "")
 
 # ==============================================================================
 # 推理引擎相关

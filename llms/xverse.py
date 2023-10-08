@@ -15,7 +15,7 @@ from transformers.utils.versions import require_version
 from peft import PeftModel
 from loguru import logger
 
-from llms.base import BaseModel, BaseModelAdapter, BasePromptAdapter
+from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
 from config import MODEL_NAME, MODEL_PATH
 
@@ -25,7 +25,7 @@ class XverseModelAdapter(BaseModelAdapter):
     Xverse对话模型的模型适配
     """
 
-    def load_model(self, 
+    def load_model_tokenizer(self, 
                    model_path: str = MODEL_PATH, 
                    adapter_path: Optional[str] = None, 
                    **kwargs): 
