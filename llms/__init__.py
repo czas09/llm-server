@@ -1,4 +1,4 @@
-from base import BaseChatModel
+from base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from chatglm import ChatGLM
 from chatglm2 import ChatGLM2
 from baichuan import Baichuan

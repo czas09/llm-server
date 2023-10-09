@@ -7,7 +7,7 @@ from config import (
     TOKENIZE_MODE, TRUST_REMOTE_CODE, DTYPE, TENSOR_PARALLEL_SIZE, 
     GPU_MEMORY_UTILIZATION, MAX_NUM_BATCHED_TOKENS, MAX_NUM_SEQS
 )
-from utils.utils import get_context_len
+from utils import get_context_len
 
 
 def get_chat_model(): 

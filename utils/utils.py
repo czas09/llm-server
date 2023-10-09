@@ -82,11 +82,3 @@ def get_context_length(config) -> int:
         if val is not None:
             return int(rope_scaling_factor * val)
     return 2048
-
-
-def generate_stream(): 
-    raise NotImplementedError
-
-
-def generate_stream_v2(): 
-    raise NotImplementedError

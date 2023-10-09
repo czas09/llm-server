@@ -69,7 +69,7 @@ class BasePromptAdapter:
                 prompt += self.assistant_prompt.format(content)
                 user_content = []
             else: 
-                raise ValueError(f"Unknown role: {role}")
+                raise ValueError(f"当前对话存在未知角色：{role}")
         
         if user_content: 
             prompt += self.user_prompt.format("\n".join(user_content))

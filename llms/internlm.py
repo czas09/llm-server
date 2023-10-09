@@ -9,22 +9,19 @@ from typing import Optional, List, Iterable
 
 import torch
 from transformers import (
-    AutoModel,
     AutoConfig,
-    AutoTokenizer,
-    AutoModelForCausalLM,
     BitsAndBytesConfig,
 )
 from transformers.utils.versions import require_version
-from peft import PeftModel
 from loguru import logger
 
-from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
+from llms import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
-from utils.utils import generate_stream, generate_stream_v2, server_error_msg, prepare_logits_processor, is_partial_stop
+from utils import prepare_logits_processor, is_partial_stop, SERVER_ERROR_MSG
 from config import (
-    MODEL_NAME, MODEL_PATH, DEVICE, CONTEXT_LEN, 
-    STREAM_INTERVERL, USE_STREAMER_V2
+    MODEL_NAME, MODEL_PATH, ADAPTER_PATH, 
+    DEVICE, CONTEXT_LEN, STREAM_INTERVERL, 
+    USE_STREAMER_V2
 )
 from utils.constants import ErrorCode
 
@@ -34,10 +31,11 @@ class InternLMModelAdapter(BaseModelAdapter):
     InternLM对话模型的模型适配
     """
 
-    def load_model_tokenizer(self, 
-                   model_path: str = MODEL_PATH, 
-                   adapter_path: Optional[str] = None, 
-                   **kwargs): 
+    def load_model_tokenizer(
+        self, 
+        model_path: str = MODEL_PATH, 
+        adapter_path: Optional[str] = ADAPTER_PATH, 
+        **kwargs): 
         """使用Transformers作为后端引擎加载模型"""
 
         # ======================================================================
@@ -78,7 +76,7 @@ class InternLMModelAdapter(BaseModelAdapter):
 
         # 量化相关配置项（使用bitsandbytes）
         if kwargs.get("load_in_8bit", False):
-            require_version("bitsandbytes>=0.37.0", "To fix: pip install bitsandbytes>=0.37.0")
+            require_version("bitsandbytes>=0.37.0", "请更新bitsandbytes版本：pip install bitsandbytes>=0.37.0")
 
             config_kwargs["load_in_8bit"] = True
             config_kwargs["quantization_config"] = BitsAndBytesConfig(
@@ -90,8 +88,8 @@ class InternLMModelAdapter(BaseModelAdapter):
             logger.info("以8位量化类型加载模型")
 
         elif kwargs.get("load_in_4bit", False):
-            require_version("bitsandbytes>=0.39.0", "To fix: pip install bitsandbytes>=0.39.0")
-            require_version("peft>=0.4.0.dev0", "To fix: pip install git+https://github.com/huggingface/peft.git")
+            require_version("bitsandbytes>=0.39.0", "请更新bitsandbytes版本：pip install bitsandbytes>=0.39.0")
+            require_version("peft>=0.4.0.dev0", "请更新peft版本：pip install git+https://github.com/huggingface/peft.git")
 
             config_kwargs["load_in_4bit"] = True
             config_kwargs["quantization_config"] = BitsAndBytesConfig(
@@ -120,7 +118,6 @@ class InternLMModelAdapter(BaseModelAdapter):
         # ======================================================================
         # 加载模型
         # ======================================================================
-        # Load and prepare pretrained models (without valuehead).
         model = self.model_class.from_pretrained(
             model_path,
             config=config,
@@ -131,7 +128,7 @@ class InternLMModelAdapter(BaseModelAdapter):
         if device == "cpu":
             model = model.float()
 
-        # post process for special tokens
+        # Tokenization后处理特殊字符
         tokenizer = self.post_tokenizer(tokenizer)
 
         if adapter_path is not None: 
@@ -140,7 +137,6 @@ class InternLMModelAdapter(BaseModelAdapter):
         if device == "cuda" and num_gpus == 1 and "device_map" not in config_kwargs:
             model.to(device)
 
-        # inference mode
         model.eval()
 
         return model, tokenizer
@@ -148,6 +144,8 @@ class InternLMModelAdapter(BaseModelAdapter):
     def load_adapter_model(self, model, tokenizer, adapter_path, model_kwargs, **kwargs):
         use_ptuning_v2 = kwargs.get("use_ptuning_v2", False)
         resize_embeddings = kwargs.get("resize_embeddings", False)
+
+        # 调整模型输入embedding长度，以适配tokenizer
         if adapter_path and resize_embeddings:
             model_vocab_size = model.get_input_embeddings().weight.size(0)
             tokenzier_vocab_size = len(tokenizer)
@@ -156,9 +154,10 @@ class InternLMModelAdapter(BaseModelAdapter):
 
             if model_vocab_size != tokenzier_vocab_size:
                 assert tokenzier_vocab_size > model_vocab_size
-                logger.info("Resize model embeddings to fit tokenizer")
+                logger.info("重新设置模型输入embedding长度，以适配tokenizer")
                 model.resize_token_embeddings(tokenzier_vocab_size)
 
+        # 进一步加载以 P-Tuning V2 方式微调的模型adapter
         if use_ptuning_v2:
             prefix_state_dict = torch.load(os.path.join(adapter_path, "pytorch_model.bin"))
             new_prefix_state_dict = {}
@@ -198,29 +197,7 @@ class InternLMPromptAdapter(BasePromptAdapter):
         self.stop = {
             "strings": ["</s>", "<eoa>"],
         }
-    
-    def construct_prompt(self, messages: List[ChatMessage]) -> str: 
-        prompt = self.system_prompt
-        user_content = []
-        i = 1
-        for message in messages:
-            role, content = message.role, message.content
-            if role in [Role.USER, Role.SYSTEM]:
-                user_content.append(content)
-            elif role == Role.ASSISTANT:
-                u_content = "\n".join(user_content)
-                prompt += f"[Round {i}]\n\n{self.user_prompt.format(u_content)}"
-                prompt += self.assistant_prompt.format(content)
-                user_content = []
-                i += 1
-            else:
-                raise ValueError(f"Unknown role: {role}")
 
-        if user_content:
-            u_content = "\n".join(user_content)
-            prompt += f"[Round {i}]\n\n{self.user_prompt.format(u_content)}"
-
-        return prompt
 
 
 class InternLM(BaseChatModel): 
@@ -278,14 +255,14 @@ class InternLM(BaseChatModel):
 
         except torch.cuda.OutOfMemoryError as e:
             response_dict = {
-                "text": f"{server_error_msg}\n\n({e})",
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
                 "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
             }
             yield response_dict
 
         except (ValueError, RuntimeError) as e:
             response_dict = {
-                "text": f"{server_error_msg}\n\n({e})",
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
                 "error_code": ErrorCode.INTERNAL_ERROR,
             }
             yield response_dict
@@ -305,14 +282,14 @@ class InternLM(BaseChatModel):
 
         except torch.cuda.OutOfMemoryError as e:
             response_dict = {
-                "text": f"{server_error_msg}\n\n({e})",
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
                 "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
             }
             yield response_dict
 
         except (ValueError, RuntimeError) as e:
             response_dict = {
-                "text": f"{server_error_msg}\n\n({e})",
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
                 "error_code": ErrorCode.INTERNAL_ERROR,
             }
             yield response_dict
@@ -326,6 +303,11 @@ class InternLM(BaseChatModel):
         context_len: int,
         stream_interval: int = 2,
     ): 
+        """参考api-for-open-llm和fastchat两个项目的流式文本生成实现"""
+
+        # ======================================================================
+        # 文本生成相关参数
+        # ======================================================================
         prompt = gen_params["prompt"]
         temperature = float(gen_params.get("temperature", 1.0))
         repetition_penalty = float(gen_params.get("repetition_penalty", 1.0))
@@ -357,14 +339,19 @@ class InternLM(BaseChatModel):
         output_ids = list(input_ids)
         input_echo_len = len(input_ids)
 
+        # ======================================================================
+        # 文本生成解码
+        # ======================================================================
         past_key_values = None
         sent_interrupt = False
-        for i in range(max_new_tokens):
-            if i == 0:  # prefill
+        for i in range(max_new_tokens): 
+
+            # 生成当前迭代步骤的logits
+            if i == 0:  # 预填充(prefilling)阶段：第0个logits
                 out = model(torch.as_tensor([input_ids], device=device), use_cache=True)
                 logits = out.logits
                 past_key_values = out.past_key_values
-            else:  # decoding
+            else:       # 解码阶段：
                 out = model(
                     input_ids=torch.as_tensor(
                         [[token] if not sent_interrupt else output_ids], device=device
@@ -376,6 +363,7 @@ class InternLM(BaseChatModel):
                 logits = out.logits
                 past_key_values = out.past_key_values
             
+            # 对当前迭代生成的logits进行处理，生成下一个token
             if logits_processor:
                 if repetition_penalty > 1.0:
                     tmp_output_ids = torch.as_tensor([output_ids], device=logits.device)
@@ -385,15 +373,15 @@ class InternLM(BaseChatModel):
             else:
                 last_token_logits = logits[0, -1, :]
 
-            if temperature < 1e-5 or top_p < 1e-8:  # greedy
+            if temperature < 1e-5 or top_p < 1e-8:    # 贪婪解码
                 _, indices = torch.topk(last_token_logits, 2)
                 tokens = [int(index) for index in indices.tolist()]
-            else:
+            else:                                     # multinomial解码
                 probs = torch.softmax(last_token_logits, dim=-1)
                 indices = torch.multinomial(probs, num_samples=2)
                 tokens = [int(token) for token in indices.tolist()]
 
-            token = tokens[0]
+            token = tokens[0]    # 下一个token
             output_ids.append(token)
 
             if token in stop_token_ids:
@@ -417,6 +405,7 @@ class InternLM(BaseChatModel):
                     clean_up_tokenization_spaces=True,
                 )
 
+                # 判断停止词stop
                 partially_stopped = False
                 if stop_str:
                     if isinstance(stop_str, str):
@@ -456,10 +445,10 @@ class InternLM(BaseChatModel):
                 break
 
         # Finish stream event, which contains finish reason
-        if i == max_new_tokens - 1:
+        if i == max_new_tokens - 1:    # 模型生成达到最大长度
             finish_reason = "length"
         elif stopped:
-            finish_reason = "stop"
+            finish_reason = "stop"     # 停止词截停（包括eos？）
         else:
             finish_reason = None
 
@@ -479,4 +468,5 @@ class InternLM(BaseChatModel):
         torch.cuda.empty_cache()
     
     def _generate_stream_v2(): 
+        """transformers"""
         raise NotImplementedError
