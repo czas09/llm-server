@@ -11,10 +11,7 @@ from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
 
 from models.chat_model import CHAT_MODEL_WITH_VLLM
-from config import (
-    MODEL_NAME, 
-    MODEL_PATH
-)
+from config import config
 # from api.apapter.react import (
 #     check_function_call,
 #     build_function_call_messages,
@@ -71,8 +68,8 @@ async def batch_chat():
 @model_router.get("/models")
 async def show_available_models() -> ModelList: 
     logger.info("当前模型服务：")
-    logger.info("    {}".format(MODEL_NAME))
-    return ModelList(data=[ModelCard(id=MODEL_NAME, root=MODEL_NAME)])
+    logger.info("    {}".format(config.MODEL_NAME))
+    return ModelList(data=[ModelCard(id=config.MODEL_NAME, root=config.MODEL_NAME)])
 
 
 @openai_router.post("/completions")
@@ -91,7 +88,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     #     return error_check_ret
     logger.info(f"Received chat messages: {request.messages}")
 
-    if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER, Role.FUNCTION]:
+    if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER]:
         raise HTTPException(status_code=400, detail="Invalid request")
 
     # with_function_call = check_function_call(request.messages, functions=request.functions)
@@ -115,7 +112,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     # prompt = await get_gen_prompt(request, MODEL_NAME.lower())
     prompt = CHAT_MODEL_WITH_VLLM.prompt_adapter.construct_prompt(request.messages)
     request.max_tokens = request.max_tokens or 512
-    token_ids, error_check_ret = await get_model_inputs(request, prompt, MODEL_NAME.lower())
+    token_ids, error_check_ret = await get_model_inputs(request, prompt, config.MODEL_NAME.lower())
     if error_check_ret is not None:
         return error_check_ret
 

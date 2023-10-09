@@ -8,10 +8,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from models.chat_model import CHAT_MODEL
-from config import (
-    MODEL_NAME, 
-    MODEL_PATH
-)
+from config import config
 from protocol import (
     ModelCard,
     ModelList,
@@ -40,6 +37,8 @@ openai_router = APIRouter(prefix="/chat")    # OpenAI API 风格接口：/v1/mod
 # 仿照 ChatGLM 风格接口
 # ==============================================================================
 
+# TODO(@zyw)
+
 @model_router.post("/chat")
 async def chat(): 
     raise NotImplementedError
@@ -62,14 +61,14 @@ async def batch_chat():
 @model_router.get("/models")
 async def show_available_models() -> ModelList: 
     logger.info("当前模型服务：")
-    logger.info("    {}".format(MODEL_NAME))
-    return ModelList(data=[ModelCard(id=MODEL_NAME, root=MODEL_NAME)])
+    logger.info("    {}".format(config.MODEL_NAME))
+    return ModelList(data=[ModelCard(id=config.MODEL_NAME, root=config.MODEL_NAME)])
 
 
 @openai_router.post("/completions")
 async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse: 
     """Creates a completion for the chat message"""
-    if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER, Role.FUNCTION]:
+    if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER]:
         raise HTTPException(status_code=400, detail="Invalid request")
 
     # error_check_ret = check_requests(request)

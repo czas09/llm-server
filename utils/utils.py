@@ -11,7 +11,7 @@ from transformers.generation.logits_process import (
 from protocol import ChatMessage, Role
 
 
-server_error_msg = (
+SERVER_ERROR_MSG = (
     "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
 )
 

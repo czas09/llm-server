@@ -18,11 +18,7 @@ from loguru import logger
 from llms import BaseChatModel, BaseModelAdapter, BasePromptAdapter
 from protocol import ChatMessage, Role
 from utils import prepare_logits_processor, is_partial_stop, SERVER_ERROR_MSG
-from config import (
-    MODEL_NAME, MODEL_PATH, ADAPTER_PATH, 
-    DEVICE, CONTEXT_LEN, STREAM_INTERVERL, 
-    USE_STREAMER_V2
-)
+from config import config
 from utils.constants import ErrorCode
 
 
@@ -33,8 +29,8 @@ class InternLMModelAdapter(BaseModelAdapter):
 
     def load_model_tokenizer(
         self, 
-        model_path: str = MODEL_PATH, 
-        adapter_path: Optional[str] = ADAPTER_PATH, 
+        model_path: str = config.MODEL_PATH, 
+        adapter_path: Optional[str] = config.ADAPTER_PATH, 
         **kwargs): 
         """使用Transformers作为后端引擎加载模型"""
 
@@ -207,12 +203,12 @@ class InternLM(BaseChatModel):
         self.model, self.tokenizer = self._get_model_tokenizer()
         self.model_adapter: InternLMModelAdapter = self._get_model_adapter()
         self.prompt_adapter: InternLMPromptAdapter = self._get_prompt_adapter()
-        self.device = DEVICE
-        self.model_name = MODEL_NAME
+        self.device = config.DEVICE
+        self.model_name = config.MODEL_NAME
         # self.prompt_name = 
-        self.context_len: Optional[int] = CONTEXT_LEN
-        self.stream_interval: Optional[int] = STREAM_INTERVERL
-        self.use_streamer_v2: Optional[bool] = USE_STREAMER_V2
+        self.context_len: Optional[int] = config.CONTEXT_LEN
+        self.stream_interval: Optional[int] = config.STREAM_INTERVERL
+        self.use_streamer_v2: Optional[bool] = config.USE_STREAMER_V2
         self.fix_tokenizer()
     
     def _get_model_tokenizer(self): 
