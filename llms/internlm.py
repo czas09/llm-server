@@ -6,6 +6,11 @@ import gc
 import json
 import os.path
 from typing import Optional, List, Iterable
+import sys
+if sys.version_info >= (3, 9): 
+    from functools import cache
+else: 
+    from functools import lru_cache as cache
 
 import torch
 from transformers import (
@@ -200,8 +205,8 @@ class InternLM(BaseChatModel):
     """InternLM对话模型"""
 
     def __init__(self): 
-        self.model, self.tokenizer = self._get_model_tokenizer()
         self.model_adapter: InternLMModelAdapter = self._get_model_adapter()
+        self.model, self.tokenizer = self._get_model_tokenizer()
         self.prompt_adapter: InternLMPromptAdapter = self._get_prompt_adapter()
         self.device = config.DEVICE
         self.model_name = config.MODEL_NAME
@@ -214,11 +219,13 @@ class InternLM(BaseChatModel):
     def _get_model_tokenizer(self): 
         return self.model_adapter.load_model_tokenizer()
 
+    @cache
     def _get_model_adapter(self) -> InternLMModelAdapter: 
         """获取模型适配"""
         internlm_model_adapter = InternLMModelAdapter()
         return internlm_model_adapter
     
+    @cache
     def _get_prompt_adapter(self) -> InternLMPromptAdapter: 
         """获取提示词适配"""
         internlm_prompt_adapter = InternLMPromptAdapter()
@@ -230,13 +237,13 @@ class InternLM(BaseChatModel):
         
         try: 
             for output in self._generate_stream(
-            self.model, 
-            self.tokenizer, 
-            gen_params, 
-            self.device, 
-            self.context_len, 
-            self.stream_interval, 
-        ): 
+                self.model, 
+                self.tokenizer, 
+                gen_params, 
+                self.device, 
+                self.context_len, 
+                self.stream_interval, 
+            ): 
                 response_dict = {
                     "text": output["text"], 
                     "error_code": 0, 
@@ -292,6 +299,7 @@ class InternLM(BaseChatModel):
     
     @torch.inference_mode()
     def _generate_stream(
+        self, 
         model,
         tokenizer,
         gen_params,

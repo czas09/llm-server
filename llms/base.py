@@ -22,22 +22,7 @@ else:
     from functools import lru_cache as cache
 
 from protocol import ChatMessage, Role
-
-from config import (
-    MODEL_NAME, 
-    MODEL_PATH, 
-    ADAPTER_MODEL_PATH, 
-    QUANTIZE, 
-    DEVICE, 
-    DEVICE_MAP, 
-    NUM_GPUS, 
-    LOAD_IN_8BIT, 
-    LOAD_IN_4BIT, 
-    USING_PTUNING_V2, 
-    CONTEXT_LEN, 
-    STREAM_INTERVERL, 
-    PROMPT_NAME, 
-)
+from config import config
 
 
 class BasePromptAdapter: 
@@ -206,11 +191,11 @@ class BaseModelAdapter:
 
     @property
     def model_name(self): 
-        return MODEL_NAME
+        return config.MODEL_NAME
     
     @property
     def model_path(self): 
-        return MODEL_PATH
+        return config.MODEL_PATH
 
     @property
     def model_class(self):

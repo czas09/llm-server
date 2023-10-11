@@ -5,11 +5,12 @@ def get_chat_model():
     """加载对话模型"""
 
     if "chatglm2" in config.MODEL_NAME: 
-        pass
+        from llms import ChatGLM2
+        model = ChatGLM2()
 
     elif "chatglm" in config.MODEL_NAME:    # TODO(zyw)
-        from llms.chatglm import load_chatglm_model
-        model = load_chatglm_model()
+        from llms import ChatGLM
+        model = ChatGLM()
     
     elif "baichuan2" in config.MODEL_NAME: 
         from llms import Baichuan2
@@ -20,11 +21,11 @@ def get_chat_model():
         model = Baichuan()
 
     elif "qwen" in config.MODEL_NAME:    # TODO(zyw)
-        from llms.qwen import load_qwen_model
-        model = load_qwen_model()
+        from llms import Qwen
+        model = Qwen()
 
     elif "internlm" in config.MODEL_NAME: 
-        from llms.internlm import InternLM
+        from llms import InternLM
         model = InternLM()
 
     elif "xverse" in config.MODEL_NAME:    # TODO(zyw)
