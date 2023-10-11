@@ -64,4 +64,6 @@ vllm_routes.py    以vLLM为后端的API路由实现
 
 ## 待办事项
 
+* 优化服务启动方式，方便调整配置项的具体设置
+* 设置各项参数的缺省值和校验逻辑
 * 整合之前开发的 embedding-model-server

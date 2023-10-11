@@ -36,7 +36,7 @@ elif config.SERVING_ENGINE == "vllm":
     app.include_router(chat_router, tags=["chat"])
 
 elif config.SERVING_ENGINE == "lmdeploy": 
-    raise NotImplementedError("目前暂未支持lmdeploy")
+    raise NotImplementedError("目前暂未支持lmdeploy！")
 
 else: 
     raise ValueError("SERVING_ENGINE must be one of [transformers, vllm, lmdeploy]")
