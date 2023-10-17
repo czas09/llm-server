@@ -71,8 +71,8 @@ def get_chat_model_with_vllm():    # TODO(@zyw)
     )
 
     if "internlm" in config.MODEL_NAME: 
-        from llms.internlm import InternLM
-        vllm_model.prompt_adapter = InternLM.prompt_adapter
+        from llms.internlm import InternLMPromptAdapter
+        vllm_model.prompt_adapter = InternLMPromptAdapter()
 
     # engine_model_config = asyncio.run(vllm_model.get_model_config())
     vllm_model.engine.scheduler_config.max_model_len = config.CONTEXT_LEN
@@ -89,7 +89,7 @@ def get_chat_model_with_lmdploy():    # TODO(@zyw)
 if config.SERVING_ENGINE == "transformers": 
     CHAT_MODEL = get_chat_model()
 elif config.SERVING_ENGINE == "vllm": 
-    CHAT_MODEL_WITH_VLLM = get_chat_model_with_vllm()
+    CHAT_MODEL = get_chat_model_with_vllm()
 elif config.SERVING_ENGINE == "lmdeploy": 
-    CHAT_MODEL_WITH_LMDEPLOY = get_chat_model_with_lmdploy()
+    CHAT_MODEL = get_chat_model_with_lmdploy()
 # EXCLUDE_MODELS = ["baichuan-13b", "qwen"]  # model names for special processing

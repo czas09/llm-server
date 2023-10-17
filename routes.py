@@ -143,7 +143,6 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
     return ChatCompletionResponse(model=request.model, choices=choices, usage=usage)
 
 
-
 async def chat_completion_stream_generator(
     model_name: str, gen_params: Dict[str, Any], n: int, raw_request: Request
 ) -> Generator[str, Any, None]:

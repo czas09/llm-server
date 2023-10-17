@@ -4,6 +4,8 @@ import os
 
 from loguru import logger
 
+from configs.model_paths import CHAT_MODEL_ROOTS, CHAT_MODEL_NAME_MAP, EMBEDDING_MODEL_NAME_MAP
+
 
 logger.add("./service.log", level='INFO')
 
@@ -36,7 +38,7 @@ DEFAULT_CONFIGS = {
     "LOAD_IN_4BIT": False, 
     "USING_PTUNING_V2": False, 
 
-    "CONTEXT_LEN": None, 
+    "CONTEXT_LEN": 2048, 
     "STREAM_INTERVERL": 2, 
     # PROMPT_NAME
 
@@ -82,8 +84,10 @@ class Config:
         # ==============================================================================
         self.MODEL_NAME = config.get("MODEL", "model_name").lower() \
             if config.get("MODEL", "model_name") != "" else DEFAULT_CONFIGS["MODEL_NAME"]
+        chat_model_paths = [os.path.join(root, CHAT_MODEL_NAME_MAP[self.MODEL_NAME]) for root in CHAT_MODEL_ROOTS]
+        chat_model_path = [path for path in chat_model_paths if os.path.isdir(path)][0]
         self.MODEL_PATH = config.get("MODEL", "model_path") \
-            if config.get("MODEL", "model_path") != "" else DEFAULT_CONFIGS["MODEL_PATH"]
+            if config.get("MODEL", "model_path") != "" else chat_model_path
         self.ADAPTER_PATH = config.get("MODEL", "adapter_path") \
             if config.get("MODEL", "adapter_path") != "" else DEFAULT_CONFIGS["ADAPTER_PATH"]
         self.RESIZE_EMBEDDING = config.getboolean("MODEL", "resize_embedding") \

@@ -10,7 +10,7 @@ from vllm.outputs import RequestOutput
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
 
-from models.chat_model import CHAT_MODEL_WITH_VLLM
+from models.chat_model import CHAT_MODEL
 from config import config
 # from api.apapter.react import (
 #     check_function_call,
@@ -110,7 +110,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
 
     # TODO
     # prompt = await get_gen_prompt(request, MODEL_NAME.lower())
-    prompt = CHAT_MODEL_WITH_VLLM.prompt_adapter.construct_prompt(request.messages)
+    prompt = CHAT_MODEL.prompt_adapter.construct_prompt(request.messages)
     request.max_tokens = request.max_tokens or 512
     token_ids, error_check_ret = await get_model_inputs(request, prompt, config.MODEL_NAME.lower())
     if error_check_ret is not None:
@@ -119,9 +119,9 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     # 处理停止词：stop 和 stop_token_ids
     # stop settings
     stop, stop_token_ids = [], []
-    if CHAT_MODEL_WITH_VLLM.prompt_adapter.stop is not None: 
-        stop_token_ids = CHAT_MODEL_WITH_VLLM.prompt_adapter.stop.get("token_ids", [])
-        stop = CHAT_MODEL_WITH_VLLM.stop.get("strings", [])
+    if CHAT_MODEL.prompt_adapter.stop is not None: 
+        stop_token_ids = CHAT_MODEL.prompt_adapter.stop.get("token_ids", [])
+        stop = CHAT_MODEL.prompt_adapter.stop.get("strings", [])
     
     request.stop = request.stop or []
     if isinstance(request.stop, str): 
@@ -153,7 +153,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    result_generator = CHAT_MODEL_WITH_VLLM.generate(
+    result_generator = CHAT_MODEL.generate(
         prompt if isinstance(prompt, str) else None,
         sampling_params,
         request_id,
@@ -258,7 +258,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     async for res in result_generator:
         if await raw_request.is_disconnected():
             # Abort the request if the client disconnects.
-            await CHAT_MODEL_WITH_VLLM.abort(request_id)
+            await CHAT_MODEL.abort(request_id)
             return
         final_res = res
 
@@ -313,15 +313,15 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
 
 
 async def get_model_inputs(request, prompt, model_name):
-    max_input_tokens = CHAT_MODEL_WITH_VLLM.max_model_len - request.max_tokens
+    max_input_tokens = CHAT_MODEL.max_model_len - request.max_tokens
     if isinstance(prompt, str):
         if getattr(request, "infilling", False):
-            input_ids = CHAT_MODEL_WITH_VLLM.engine.tokenizer(
+            input_ids = CHAT_MODEL.engine.tokenizer(
                 prompt,
                 suffix_first=getattr(request, "suffix_first", False)
             ).input_ids
         else:
-            input_ids = CHAT_MODEL_WITH_VLLM.engine.tokenizer(prompt).input_ids[-max_input_tokens:]  # truncate left
+            input_ids = CHAT_MODEL.engine.tokenizer(prompt).input_ids[-max_input_tokens:]  # truncate left
     elif isinstance(prompt[0], int):
         input_ids = prompt[-max_input_tokens:]  # truncate left
     # else:

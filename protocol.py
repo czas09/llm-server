@@ -114,8 +114,7 @@ class ChatCompletionResponse(BaseModel):
     object: str = "chat.completion"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
-    batch_choices: List[List[ChatCompletionResponseChoice]]
-    # choices: List[ChatCompletionResponseChoice]
+    choices: List[ChatCompletionResponseChoice]
     usage: UsageInfo
 
 
