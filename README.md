@@ -23,15 +23,15 @@
 
 | 模型名称 | 接口格式 | 后端引擎 | 流式调用 | 加载 PEFT |
 | ----------         | ----- | :---: | :---: | :---: |
-| ChatGLM-6B         | ChatGLM style (WIP) | HF Transformers √ vLLM × | √ | √ |
-| ChatGLM2-6b        | ChatGLM style √ OpenAI style √ | HF Transformers √ vLLM × | √ | √ |
+| ChatGLM-6B         | ChatGLM style (WIP) | HF Transformers | √ | √ |
+| ChatGLM2-6b        | ChatGLM style <br> OpenAI style | HF Transformers | √ | √ |
 | Baichuan-13B-Chat  | WIP
 | Baichuan2-7B-Chat  | WIP
 | Baichuan2-13B-Chat | WIP
 | Qwen-7B-Chat       | WIP
 | Qwen-14B-Chat      | WIP
-| InternLM-Chat-7B   | OpenAI style  | HF Transformers √ vLLM √ | √ | √ |
-| InternLM-Chat-20B  | OpenAI style  | HF Transformers √ vLLM √ | √ | √ |
+| InternLM-Chat-7B   | OpenAI style | HF Transformers <br> vLLM | √ | √ |
+| InternLM-Chat-20B  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | AquilaChat2-7B     | WIP
 | AquilaChat2-34B    | WIP
 
