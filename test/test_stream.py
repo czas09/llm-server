@@ -1,7 +1,6 @@
 """大模型类"""
 
 
-from base64 import encode
 import json
 import requests
 from typing import Optional
