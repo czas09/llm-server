@@ -199,7 +199,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
         previous_texts = [""] * request.n
         previous_num_tokens = [0] * request.n
         found_action_name = False
-        with_function_call = request.functions is not None
+        # with_function_call = request.functions is not None
         async for res in result_generator:
             res: RequestOutput
             for output in res.outputs:
