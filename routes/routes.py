@@ -1,3 +1,6 @@
+"""对话模型接口：OpenAI 风格"""
+
+
 import asyncio
 import json
 import secrets
@@ -10,8 +13,6 @@ from loguru import logger
 from models.chat_model import CHAT_MODEL
 from config import config
 from protocol import (
-    ModelCard,
-    ModelList,
     # ModelPermission,
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -28,41 +29,9 @@ from utils import check_requests, create_error_response, ErrorCode
 
 logger.add("./service.log", level='INFO')
 
-model_router = APIRouter()
-chat_router = APIRouter()                    # 仿照 ChatGLM 风格接口：/chat, /stream chat, /batch chat
-openai_router = APIRouter(prefix="/chat")    # OpenAI API 风格接口：/v1/models, /v1/chat/completions
-
-
-# ==============================================================================
-# 仿照 ChatGLM 风格接口
-# ==============================================================================
-
-# TODO(@zyw)
-
-@model_router.post("/chat")
-async def chat(): 
-    raise NotImplementedError
-
-
-@model_router.post("/stream_chat")
-async def stream_chat(): 
-    raise NotImplementedError
-
-
-@model_router.post("/batch_chat")
-async def batch_chat(): 
-    raise NotImplementedError
-
-
-# ==============================================================================
-# OpenAI API 风格接口
-# ==============================================================================
-
-@model_router.get("/models")
-async def show_available_models() -> ModelList: 
-    logger.info("当前模型服务：")
-    logger.info("    {}".format(config.MODEL_NAME))
-    return ModelList(data=[ModelCard(id=config.MODEL_NAME, root=config.MODEL_NAME)])
+# OpenAI API 风格接口：
+# - /v1/chat/completions
+openai_router = APIRouter(prefix="/chat")
 
 
 @openai_router.post("/completions")

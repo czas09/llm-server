@@ -22,18 +22,19 @@ app.add_middleware(
 # embedding-model-server...
 
 if config.SERVING_ENGINE == "transformers": 
-    from routes import openai_router, chat_router
+    from routes import openai_router
 
-    app.include_router(model_router, prefix="/v1", tags=["model"])
-    app.include_router(openai_router, prefix="/v1", tags=["chat"])
-    app.include_router(chat_router, tags=["chat"])
+    app.include_router(model_router, prefix="/v1", tags=["model list"])
+    app.include_router(openai_router, prefix="/v1", tags=["openai"])
+    if "chatglm" in config.MODEL_NAME:    # 临时，其他模型是否需要这个格式的接口
+        from routes import chatglm_router
+        app.include_router(chatglm_router, tags=["chatglm"])
 
 elif config.SERVING_ENGINE == "vllm": 
-    from vllm_routes import openai_router, chat_router
+    from routes import openai_router
 
-    app.include_router(model_router, prefix="/v1", tags=["model"])
-    app.include_router(openai_router, prefix="/v1", tags=["chat"])
-    app.include_router(chat_router, tags=["chat"])
+    app.include_router(model_router, prefix="/v1", tags=["model list"])
+    app.include_router(openai_router, prefix="/v1", tags=["openai"])
 
 elif config.SERVING_ENGINE == "lmdeploy": 
     raise NotImplementedError("目前暂未支持lmdeploy！")
