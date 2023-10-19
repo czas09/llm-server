@@ -24,7 +24,7 @@
 | 模型名称 | 接口格式 | 后端引擎 | 流式调用 | 加载 PEFT |
 | ----------         | ----- | :---: | :---: | :---: |
 | ChatGLM-6B         | ChatGLM style (WIP) | HF Transformers √ vLLM × | √ | √ |
-| ChatGLM2-6b        | ChatGLM style (WIP) | HF Transformers √ vLLM × | √ | √ |
+| ChatGLM2-6b        | ChatGLM style √ OpenAI style √ | HF Transformers √ vLLM × | √ | √ |
 | Baichuan-13B-Chat  | WIP
 | Baichuan2-7B-Chat  | WIP
 | Baichuan2-13B-Chat | WIP
