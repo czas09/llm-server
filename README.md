@@ -21,6 +21,20 @@
   * vLLM
   * LMDeploy TODO
 
+| 模型名称 | 接口格式 | 后端引擎 | 流式调用 | 加载 PEFT |
+| ----------         | ----- | :---: | :---: | :---: |
+| ChatGLM-6B         | ChatGLM style (WIP) | HF Transformers √ vLLM × | √ | √ |
+| ChatGLM2-6b        | ChatGLM style (WIP) | HF Transformers √ vLLM × | √ | √ |
+| Baichuan-13B-Chat  | WIP
+| Baichuan2-7B-Chat  | WIP
+| Baichuan2-13B-Chat | WIP
+| Qwen-7B-Chat       | WIP
+| Qwen-14B-Chat      | WIP
+| InternLM-Chat-7B   | OpenAI style  | HF Transformers √ vLLM √ | √ | √ |
+| InternLM-Chat-20B  | OpenAI style  | HF Transformers √ vLLM √ | √ | √ |
+| AquilaChat2-7B     | WIP
+| AquilaChat2-34B    | WIP
+
 ## 后端引擎
 
 * HF Transformers
@@ -30,7 +44,7 @@
 ## 代码结构
 
 * 启动入口：app.py
-* 配置参数：config.py
+* 配置参数：config.py + configs/*.ini
 
 ```
 llms/             不同大模型的对话提示词模板包装、模型加载与交互接口等实现
@@ -46,13 +60,18 @@ vllm_routes.py    以vLLM为后端的API路由实现
 
 ## 使用方法
 
+TODO 待整理
+* 服务启动方法：后端为 transformers 或 vllm
+* 服务调用方法：非流式、流式；cURL命令行调用 or openai python sdk or requests 调用
+    * LangChain TODO
+
 ### 后端引擎为 HF Transformers
 
-启动配置项设置
+启动配置项设置，详见 configs/ 目录下的示例
 
 #### OpenAI API
 
-调用方法
+调用方法，详见 test/ 目录下的示例
 
 #### ChatGLM API
 
