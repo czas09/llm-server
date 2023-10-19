@@ -73,21 +73,21 @@ class InternLM(ChatModel):
             if chunk is None: 
                 continue
             result.append(chunk)
-            print(chunk, flush=True)
-        return "".join(result)
+            yield "".join(result)
 
 
 if __name__ == '__main__': 
+    # 创建模型服务接口
     llm = InternLM(
         host="172.21.4.23", 
         port=10375, 
         stream=True
     )
 
-    # for i in range(1): 
-    #     temp_prompt = """你好，请给我整理一份南京旅游攻略吧"""
-    #     print("第{}轮生成".format(i), llm.chat(temp_prompt))
-
-    temp_prompt = """你好！"""
-    print(llm.stream_chat(temp_prompt))
-    # print(llm.stream_chat(temp_prompt), flush=True)
+    # 流式输出
+    temp_prompt = """你好，请给我整理一份南京旅游攻略吧"""
+    pos = 0
+    for result in llm.stream_chat(temp_prompt): 
+        print(result[pos:], flush=True, end='')
+        pos = len(result)
+    print()
