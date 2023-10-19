@@ -6,11 +6,6 @@ import gc
 import json
 import os.path
 from typing import Optional, List, Iterable
-import sys
-if sys.version_info >= (3, 9): 
-    from functools import cache
-else: 
-    from functools import lru_cache as cache
 
 import torch
 from transformers import (
@@ -37,7 +32,7 @@ class InternLMModelAdapter(BaseModelAdapter):
         model_path: str = config.MODEL_PATH, 
         adapter_path: Optional[str] = config.ADAPTER_PATH, 
         **kwargs): 
-        """使用Transformers作为后端引擎加载模型"""
+        
 
         # ======================================================================
         # 加载tokenizer
@@ -219,83 +214,15 @@ class InternLM(BaseChatModel):
     def _get_model_tokenizer(self): 
         return self.model_adapter.load_model_tokenizer()
 
-    @cache
     def _get_model_adapter(self) -> InternLMModelAdapter: 
         """获取模型适配"""
         internlm_model_adapter = InternLMModelAdapter()
         return internlm_model_adapter
     
-    @cache
     def _get_prompt_adapter(self) -> InternLMPromptAdapter: 
         """获取提示词适配"""
         internlm_prompt_adapter = InternLMPromptAdapter()
         return internlm_prompt_adapter
-    
-    def stream_chat_v1(self, gen_params): 
-        if isinstance(gen_params["prompt"], list): 
-            gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
-        
-        try: 
-            for output in self._generate_stream(
-                self.model, 
-                self.tokenizer, 
-                gen_params, 
-                self.device, 
-                self.context_len, 
-                self.stream_interval, 
-            ): 
-                response_dict = {
-                    "text": output["text"], 
-                    "error_code": 0, 
-                }
-                if "usage" in output: 
-                    response_dict["usage"] = output["usage"]
-                if "finish_reason" in output:
-                    response_dict["finish_reason"] = output["finish_reason"]
-                if "logprobs" in output:
-                    response_dict["logprobs"] = output["logprobs"]
-                yield response_dict
-
-        except torch.cuda.OutOfMemoryError as e:
-            response_dict = {
-                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
-                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
-            }
-            yield response_dict
-
-        except (ValueError, RuntimeError) as e:
-            response_dict = {
-                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
-                "error_code": ErrorCode.INTERNAL_ERROR,
-            }
-            yield response_dict
-    
-    def stream_chat_v2(self, gen_params): 
-        if isinstance(gen_params["prompt"], list):
-            gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
-
-        try:
-            yield from self._generate_stream_v2(
-                self.model,
-                self.tokenizer,
-                gen_params,
-                self.device,
-                self.context_len,
-            )
-
-        except torch.cuda.OutOfMemoryError as e:
-            response_dict = {
-                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
-                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
-            }
-            yield response_dict
-
-        except (ValueError, RuntimeError) as e:
-            response_dict = {
-                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
-                "error_code": ErrorCode.INTERNAL_ERROR,
-            }
-            yield response_dict
     
     @torch.inference_mode()
     def _generate_stream(

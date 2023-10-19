@@ -16,13 +16,10 @@ from transformers import (
 )
 from transformers.utils.versions import require_version
 
-if sys.version_info >= (3, 9): 
-    from functools import cache
-else: 
-    from functools import lru_cache as cache
-
 from protocol import ChatMessage, Role
 from config import config
+from utils import prepare_logits_processor, is_partial_stop, SERVER_ERROR_MSG
+from utils.constants import ErrorCode
 
 
 class BasePromptAdapter: 
@@ -256,10 +253,70 @@ class BaseChatModel:
             yield from self.stream_chat_v2(gen_params)
 
     def stream_chat_v1(self, gen_params): 
-        raise NotImplementedError
+        if isinstance(gen_params["prompt"], list): 
+            gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
+        
+        try: 
+            for output in self._generate_stream(
+                self.model, 
+                self.tokenizer, 
+                gen_params, 
+                self.device, 
+                self.context_len, 
+                self.stream_interval, 
+            ): 
+                response_dict = {
+                    "text": output["text"], 
+                    "error_code": 0, 
+                }
+                if "usage" in output: 
+                    response_dict["usage"] = output["usage"]
+                if "finish_reason" in output:
+                    response_dict["finish_reason"] = output["finish_reason"]
+                if "logprobs" in output:
+                    response_dict["logprobs"] = output["logprobs"]
+                yield response_dict
+
+        except torch.cuda.OutOfMemoryError as e:
+            response_dict = {
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
+                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
+            }
+            yield response_dict
+
+        except (ValueError, RuntimeError) as e:
+            response_dict = {
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
+            yield response_dict
     
     def stream_chat_v2(self, gen_params): 
-        raise NotImplementedError
+        if isinstance(gen_params["prompt"], list):
+            gen_params["prompt"] = self.construct_prompt(gen_params["prompt"])
+
+        try:
+            yield from self._generate_stream_v2(
+                self.model,
+                self.tokenizer,
+                gen_params,
+                self.device,
+                self.context_len,
+            )
+
+        except torch.cuda.OutOfMemoryError as e:
+            response_dict = {
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
+                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
+            }
+            yield response_dict
+
+        except (ValueError, RuntimeError) as e:
+            response_dict = {
+                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
+            yield response_dict
 
     @property
     def stop(self):

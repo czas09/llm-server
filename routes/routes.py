@@ -35,11 +35,12 @@ openai_router = APIRouter(prefix="/chat")
 
 
 @openai_router.post("/completions")
-async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse: 
+async def create_chat_completion(request: ChatCompletionRequest, raw_request: Request) -> ChatCompletionResponse: 
     """Creates a completion for the chat message"""
     if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER]:
         raise HTTPException(status_code=400, detail="Invalid request")
 
+    # TODO(@zyw): 完善参数校验逻辑
     # error_check_ret = check_requests(request)
     # if error_check_ret is not None:
     #     return error_check_ret
@@ -49,7 +50,6 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
     # TODO(@zyw): 为Qwen和InternLM模型实现Function call功能
 
     # 处理停止词：stop 和 stop_token_ids
-    # stop settings
     stop, stop_token_ids = [], []
     if CHAT_MODEL.stop is not None: 
         stop_token_ids = CHAT_MODEL.stop.get("token_ids", [])
