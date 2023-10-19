@@ -24,7 +24,6 @@ class InternLM(ChatModel):
         max_length: Optional[int] = 4096, 
         temperature: Optional[float] = 0.97, 
         top_p: Optional[float] = 0.7, 
-        stream: Optional[bool] = False
     ): 
         self.model_name = model_name
         self.max_length: int = max_length
@@ -34,9 +33,8 @@ class InternLM(ChatModel):
         self.port = port
         self.api: str = "http://{host}:{port}/v1/chat/completions".format(host=self.host, port=str(self.port))
         # self.prompt_template: str = PROMPT_TEMPLATE
-        self.stream = stream
     
-    def _call(self, prompt: str = ""): 
+    def _call(self, prompt: str = "", stream: bool = False): 
         payload = {
             "model": self.model_name, 
             "messages": [
@@ -44,26 +42,16 @@ class InternLM(ChatModel):
             ], 
             "temperature": self.temperature, 
             "top_p": self.top_p, 
-            "stream": self.stream
+            "stream": stream
         }
-        return requests.post(self.api, json=payload)
+        return requests.post(self.api, json=payload, stream=stream)
 
     def chat(self, content: str = "") -> str: 
         resp = self._call(content)
         return resp.json().get("choices")[0].get("message").get("content")
 
     def stream_chat(self, content: str = "") -> str: 
-        payload = {
-            "model": self.model_name, 
-            "messages": [
-                {"role": "user", "content": content}
-            ], 
-            "temperature": self.temperature, 
-            "top_p": self.top_p, 
-            "stream": self.stream
-        }
-        resp = requests.post(self.api, json=payload, stream=self.stream)
-        # print(resp.iter_lines())
+        resp = self._call(content, stream=True)
         result = []
         for chunk in resp.iter_lines(delimiter=b'data: '): 
             chunk = chunk.decode(encoding='utf-8').rstrip('\n\n')
@@ -81,11 +69,10 @@ if __name__ == '__main__':
     llm = InternLM(
         host="172.21.4.23", 
         port=10375, 
-        stream=True
     )
 
     # 流式输出
-    temp_prompt = """你好，请给我整理一份南京旅游攻略吧"""
+    temp_prompt = """你好，请帮我编写一份南京旅游攻略"""
     pos = 0
     for result in llm.stream_chat(temp_prompt): 
         print(result[pos:], flush=True, end='')
