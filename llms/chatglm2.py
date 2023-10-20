@@ -2,6 +2,7 @@
 
 import gc
 import json
+import os.path
 import re
 from typing import Optional, List
 
@@ -248,7 +249,8 @@ class ChatGLM2(BaseChatModel):
         internlm_prompt_adapter = ChatGLM2PromptAdapter()
         return internlm_prompt_adapter
 
-    def _process_response(response):
+    def _process_response(response): 
+        """ChatGLM 官方实现的后处理"""
         response = response.strip()
         response = response.replace("[[训练时间]]", "2023年")
         punkts = [
@@ -273,7 +275,8 @@ class ChatGLM2(BaseChatModel):
         context_len=8192,
         stream_interval=2,    # TODO(@zyw): 入参对齐
     ): 
-        """采用ChatGLM模型官方实现的流式接口"""
+        """采用 ChatGLM 模型官方实现的流式接口"""
+
         prompt = params["prompt"]
         temperature = float(params.get("temperature", 1.0))
         repetition_penalty = float(params.get("repetition_penalty", 1.0))
@@ -295,7 +298,8 @@ class ChatGLM2(BaseChatModel):
             gen_kwargs["temperature"] = temperature
 
         total_len = 0
-        for total_ids in model.stream_generate(**inputs, **gen_kwargs):
+        # 这里使用的是 ChatGLM 模型官方实现的流式接口
+        for total_ids in model.stream_generate(**inputs, **gen_kwargs): 
             total_ids = total_ids.tolist()[0]
             total_len = len(total_ids)
             if echo:
@@ -317,6 +321,7 @@ class ChatGLM2(BaseChatModel):
 
         # TODO: ChatGLM stop when it reaches max length
         # Only last stream result contains finish_reason, we set finish_reason as stop
+        # ChatGLM 流式生成只有在最后结束时 finish_reason 不为空
         ret = {
             "text": response,
             "usage": {

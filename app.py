@@ -22,11 +22,11 @@ app.add_middleware(
 # embedding-model-server...
 
 if config.SERVING_ENGINE == "transformers": 
-    from routes import openai_router
-
     app.include_router(model_router, prefix="/v1", tags=["model list"])
-    app.include_router(openai_router, prefix="/v1", tags=["openai"])
-    if "chatglm" in config.MODEL_NAME:    # 临时，其他模型是否需要这个格式的接口
+    if "chatglm" not in config.MODEL_NAME: 
+        from routes import openai_router
+        app.include_router(openai_router, prefix="/v1", tags=["openai"])
+    else:    # chatglm    # 临时，其他模型是否需要这个格式的接口
         from routes import chatglm_router
         app.include_router(chatglm_router, tags=["chatglm"])
 

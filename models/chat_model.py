@@ -4,15 +4,15 @@ from config import config
 def get_chat_model(): 
     """加载对话模型"""
 
-    if "chatglm2" in config.MODEL_NAME: 
-        from llms import ChatGLM2
-        model = ChatGLM2()
+    # if "chatglm2" in config.MODEL_NAME:    # TODO(zyw): 两套接口底层暂时不兼容
+    #     from llms import ChatGLM2
+    #     model = ChatGLM2()
 
-    elif "chatglm" in config.MODEL_NAME:    # TODO(zyw)
-        from llms import ChatGLM
-        model = ChatGLM()
+    # elif "chatglm" in config.MODEL_NAME:    # TODO(zyw)
+    #     from llms import ChatGLM
+    #     model = ChatGLM()
     
-    elif "baichuan2" in config.MODEL_NAME: 
+    if "baichuan2" in config.MODEL_NAME: 
         from llms import Baichuan2
         model = Baichuan2()
 

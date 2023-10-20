@@ -121,31 +121,38 @@ async def chat_completion_stream_generator(
     """
     _id = f"chatcmpl-{secrets.token_hex(12)}"
     finish_stream_events = []
-    for i in range(n):
-        # First chunk with role
+    for i in range(n): 
+        # ======================================================================
+        # First chunk with role (assistant)
+        # ======================================================================
         choice_data = ChatCompletionResponseStreamChoice(
-            index=i,
-            delta=DeltaMessage(role=Role.ASSISTANT),
-            finish_reason=None,
+            index=i, 
+            delta=DeltaMessage(role=Role.ASSISTANT),    # 返回的第一个 chunk 中只包含角色信息，content 字段为空
+            finish_reason=None, 
         )
         chunk = ChatCompletionStreamResponse(
-            id=_id, choices=[choice_data], model=model_name
+            id=_id, 
+            model=model_name, 
+            choices=[choice_data], 
         )
         yield f"data: {chunk.json(exclude_unset=True, ensure_ascii=False)}\n\n"
 
         previous_text = ""
-        # with_function_call = gen_params.get("with_function_call", False)
-        found_action_name = False
         for content in CHAT_MODEL.stream_chat(gen_params):
+            # 连接中断
             if await raw_request.is_disconnected():
                 asyncio.current_task().cancel()
                 return
 
+            # 发生错误
             if content["error_code"] != 0:
                 yield f"data: {json.dumps(content, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
                 return
 
+            # ==================================================================
+            # 生成内容
+            # ==================================================================
             decoded_unicode = content["text"].replace("\ufffd", "")
             delta_text = decoded_unicode[len(previous_text):]
             previous_text = decoded_unicode
@@ -153,49 +160,27 @@ async def chat_completion_stream_generator(
             if len(delta_text) == 0:
                 delta_text = None
 
-            messages = []
-            # if with_function_call:
-            #     if found_action_name:
-            #         messages.append(build_delta_message(delta_text, "arguments"))
-            #         finish_reason = "function_call"
-            #     else:
-            #         if previous_text.rfind("\nFinal Answer:") > 0:
-            #             with_function_call = False
-
-            #         if previous_text.rfind("\nAction Input:") == -1:
-            #             continue
-            #         else:
-            #             messages.append(build_delta_message(previous_text))
-            #             pos = previous_text.rfind("\nAction Input:") + len("\nAction Input:")
-            #             messages.append(build_delta_message(previous_text[pos:], "arguments"))
-
-            #             found_action_name = True
-            #             finish_reason = "function_call"
-            # else:
-            #     messages = [DeltaMessage(content=delta_text, role=Role.ASSISTANT)]
-            #     finish_reason = content.get("finish_reason", "stop")
-            messages = [DeltaMessage(content=delta_text, role=Role.ASSISTANT)]
+            messages = DeltaMessage(content=delta_text, role=Role.ASSISTANT)
             finish_reason = content.get("finish_reason", "stop")
 
-            chunks = []
-            for m in messages:
-                choice_data = ChatCompletionResponseStreamChoice(
-                    index=i,
-                    delta=m,
-                    finish_reason=finish_reason,
-                )
-                chunks.append(ChatCompletionStreamResponse(id=_id, choices=[choice_data], model=model_name))
+            choice_data = ChatCompletionResponseStreamChoice(
+                index=i, 
+                delta=messages, 
+                finish_reason=finish_reason, 
+            )
+            chunk = ChatCompletionStreamResponse(id=_id, choices=[choice_data], model=model_name)
 
             if delta_text is None:
                 if content.get("finish_reason", None) is not None:
-                    finish_stream_events.extend(chunks)
+                    finish_stream_events.append(chunk)
                 continue
 
-            for chunk in chunks:
-                yield f"data: {chunk.json(exclude_unset=True, ensure_ascii=False)}\n\n"
+            yield f"data: {chunk.json(exclude_unset=True, ensure_ascii=False)}\n\n"
 
-    # There is not "content" field in the last delta message, so exclude_none to exclude field "content".
+    # There is not "content" field in the last delta message, so exclude_none to exclude field "content". 
+    # 最后一个 delta（finish_reason 不为空）消息中不包含 content 字段
     for finish_chunk in finish_stream_events:
         yield f"data: {finish_chunk.json(exclude_none=True, ensure_ascii=False)}\n\n"
 
+    # 为了兼容一部分 ChatGPT 客户端，最后生成一个 [DONE] 标记
     yield "data: [DONE]\n\n"

@@ -126,7 +126,7 @@ class DeltaMessage(BaseModel):
 
 class ChatCompletionResponseStreamChoice(BaseModel):
     index: int
-    delta: DeltaMessage
+    delta: DeltaMessage    # 在流式传输的情况下，生成内容放在 delta 字段中而不是 messages 字段
     finish_reason: Optional[Literal["stop", "length"]] = None
     # finish_reason: Optional[Literal["stop", "length", "function_call"]] = None
 

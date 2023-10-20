@@ -271,9 +271,9 @@ class BaseChatModel:
                 }
                 if "usage" in output: 
                     response_dict["usage"] = output["usage"]
-                if "finish_reason" in output:
+                if "finish_reason" in output: 
                     response_dict["finish_reason"] = output["finish_reason"]
-                if "logprobs" in output:
+                if "logprobs" in output: 
                     response_dict["logprobs"] = output["logprobs"]
                 yield response_dict
 

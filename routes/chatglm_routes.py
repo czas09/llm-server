@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from routes import load_model_on_gpus
+from routes.utils import load_model_on_gpus
 from config import config
 
 
@@ -193,14 +193,15 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
     return responses
 
 
-# 加载模型
-model_dir = config.MODEL_PATH
-num_gpus = config.NUM_GPUS
-tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
-model = load_model_on_gpus(model_dir, num_gpus=num_gpus)
-model.eval()
+if "chatglm" in config.MODEL_NAME: 
+    # 加载模型
+    model_dir = config.MODEL_PATH
+    num_gpus = config.NUM_GPUS
+    tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+    model = load_model_on_gpus(model_dir, num_gpus=num_gpus)
+    model.eval()
 
-# 创建Logits处理器
-logits_processor = LogitsProcessorList()
-logits_processor.append(InvalidScoreLogitsProcessor())
-logits_processor = logits_processor
+    # 创建Logits处理器
+    logits_processor = LogitsProcessorList()
+    logits_processor.append(InvalidScoreLogitsProcessor())
+    logits_processor = logits_processor
