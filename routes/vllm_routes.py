@@ -47,39 +47,17 @@ openai_router = APIRouter(prefix="/chat")
 
 @openai_router.post("/completions")
 async def create_chat_completion(request: ChatCompletionRequest, raw_request: Request) -> ChatCompletionResponse: 
-    """Completion API similar to OpenAI's API.
+    """参考 api-for-open-llm 与 vllm 两个项目中的相关实现"""
 
-    See  https://platform.openai.com/docs/api-reference/chat/create
-    for the API specification. This API mimics the OpenAI ChatCompletion API.
-
-    NOTE: Currently we do not support the following features:
-        - function_call (Users should implement this by themselves)
-        - logit_bias (to be supported by vLLM engine)
-    """
-    # error_check_ret = check_requests(request)
+    logger.info(f"Received chat messages: {request.messages}")
+    
+    # TODO(@zyw): 完善入参校验
+    # error_check_ret = await check_requests(request)
     # if error_check_ret is not None:
     #     return error_check_ret
-    logger.info(f"Received chat messages: {request.messages}")
 
     if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER]:
         raise HTTPException(status_code=400, detail="Invalid request")
-
-    # with_function_call = check_function_call(request.messages, functions=request.functions)
-    # if with_function_call and "qwen" not in config.MODEL_NAME.lower():
-    #     raise HTTPException(status_code=400, detail="Invalid request format: functions only supported by Qwen-7B-Chat")
-
-    # if with_function_call:
-    #     if request.functions is None:
-    #         for message in request.messages:
-    #             if message.functions is not None:
-    #                 request.functions = message.functions
-    #                 break
-
-    #     request.messages = build_function_call_messages(
-    #         request.messages,
-    #         request.functions,
-    #         request.function_call,
-    #     )
 
     # TODO
     # prompt = await get_gen_prompt(request, MODEL_NAME.lower())
@@ -108,6 +86,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     request_id = f"cmpl-{random_uuid()}"
     created_time = int(time.monotonic())
     try:
+        # SamplingParams 是 vLLM 框架提供的采样参数列表
         sampling_params = SamplingParams(
             n=request.n,
             presence_penalty=request.presence_penalty,
@@ -126,6 +105,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # 这里的 CHAT_MODEL 是基于 vllm.AsyncLLMEngine 接口加载的
     result_generator = CHAT_MODEL.generate(
         prompt if isinstance(prompt, str) else None,
         sampling_params,
@@ -153,12 +133,13 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
 
         return response_json
 
-    async def completion_stream_generator() -> AsyncGenerator[str, None]:
-        # First chunk with role
+    async def completion_stream_generator() -> AsyncGenerator[str, None]: 
+
+        # 返回的第一个 chunk 中只包含角色信息，content 字段为空
         for i in range(request.n):
             choice_data = ChatCompletionResponseStreamChoice(
                 index=i,
-                delta=DeltaMessage(role=Role.ASSISTANT),
+                delta=DeltaMessage(role=Role.ASSISTANT), 
                 finish_reason=None,
             )
             chunk = ChatCompletionStreamResponse(
@@ -171,62 +152,33 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
 
         previous_texts = [""] * request.n
         previous_num_tokens = [0] * request.n
-        found_action_name = False
-        # with_function_call = request.functions is not None
         async for res in result_generator:
             res: RequestOutput
-            for output in res.outputs:
+            for output in res.outputs:    # 假定有 n 条输入进行并行生成
                 i = output.index
-                output.text = output.text.replace("�", "")  # TODO: fix qwen decode
+                output.text = output.text.replace("�", "")  # TODO: 修复Qwen模型问题
                 delta_text = output.text[len(previous_texts[i]):]
                 previous_texts[i] = output.text
                 previous_num_tokens[i] = len(output.token_ids)
-
-                msgs = []
-                # if with_function_call:
-                #     if found_action_name:
-                #         if previous_texts[i].rfind("\nObserv") > 0:
-                #             break
-                #         msgs.append(build_delta_message(delta_text, "arguments"))
-                #         finish_reason = "function_call"
-                #     else:
-                #         if previous_texts[i].rfind("\nFinal Answer:") > 0:
-                #             with_function_call = False
-
-                #         if previous_texts[i].rfind("\nAction Input:") == -1:
-                #             continue
-                #         else:
-                #             msgs.append(build_delta_message(previous_texts[i]))
-                #             pos = previous_texts[i].rfind("\nAction Input:") + len("\nAction Input:")
-                #             msgs.append(build_delta_message(previous_texts[i][pos:], "arguments"))
-
-                #             found_action_name = True
-                #             finish_reason = "function_call"
-                # else:
-                #     msgs = [DeltaMessage(content=delta_text, role=Role.ASSISTANT)]
-                #     finish_reason = output.finish_reason
-                msgs = [DeltaMessage(content=delta_text, role=Role.ASSISTANT)]
                 finish_reason = output.finish_reason
+                if output.finish_reason is not None: 
+                    delta_text = ""
 
-                for m in msgs:
-                    response_json = create_stream_response_json(index=i, delta=m, finish_reason=finish_reason)
-                    yield f"data: {response_json}\n\n"
+                response_json = create_stream_response_json(
+                    index=i, 
+                    delta=DeltaMessage(content=delta_text, role=Role.ASSISTANT), 
+                    finish_reason=finish_reason
+                )
+                yield f"data: {response_json}\n\n"
 
-                if output.finish_reason is not None:
-                    response_json = create_stream_response_json(
-                        index=i,
-                        delta=DeltaMessage(content="", role=Role.ASSISTANT),
-                        finish_reason=output.finish_reason,
-                    )
-                    yield f"data: {response_json}\n\n"
-
+        # 为了兼容一部分 ChatGPT 客户端，最后生成一个 [DONE] 标记
         yield "data: [DONE]\n\n"
 
-    # Streaming response
-    if request.stream:
+    # 流式生成
+    if request.stream: 
         return StreamingResponse(completion_stream_generator(), media_type="text/event-stream")
 
-    # Non-streaming response
+    # 非流式生成
     final_res: RequestOutput = None
     async for res in result_generator:
         if await raw_request.is_disconnected():
@@ -235,17 +187,12 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
             return
         final_res = res
 
-
     assert final_res is not None
     choices = []
     for output in final_res.outputs:
-        output.text = output.text.replace("�", "")  # TODO: fix qwen decode
+        output.text = output.text.replace("�", "")  # TODO: 修正千问模型的问题
 
         finish_reason = output.finish_reason
-        # if with_function_call:
-        #     message, finish_reason = build_chat_message(output.text, request.functions)
-        # else:
-        #     message = ChatMessage(role=Role.ASSISTANT, content=output.text)
         message = ChatMessage(role=Role.ASSISTANT, content=output.text)
 
         choices.append(

@@ -160,13 +160,10 @@ async def chat_completion_stream_generator(
             if len(delta_text) == 0:
                 delta_text = None
 
-            messages = DeltaMessage(content=delta_text, role=Role.ASSISTANT)
-            finish_reason = content.get("finish_reason", "stop")
-
             choice_data = ChatCompletionResponseStreamChoice(
                 index=i, 
-                delta=messages, 
-                finish_reason=finish_reason, 
+                delta=DeltaMessage(content=delta_text, role=Role.ASSISTANT), 
+                finish_reason=content.get("finish_reason", "stop"), 
             )
             chunk = ChatCompletionStreamResponse(id=_id, choices=[choice_data], model=model_name)
 

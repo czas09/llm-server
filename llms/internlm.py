@@ -18,7 +18,7 @@
 import gc
 import json
 import os.path
-from typing import Optional, List, Iterable
+from typing import Optional, Iterable
 
 import torch
 from transformers import (
@@ -29,10 +29,8 @@ from transformers.utils.versions import require_version
 from loguru import logger
 
 from llms import BaseChatModel, BaseModelAdapter, BasePromptAdapter
-from protocol import ChatMessage, Role
-from utils import prepare_logits_processor, is_partial_stop, SERVER_ERROR_MSG
+from utils import prepare_logits_processor, is_partial_stop
 from config import config
-from utils.constants import ErrorCode
 
 
 class InternLMModelAdapter(BaseModelAdapter): 
