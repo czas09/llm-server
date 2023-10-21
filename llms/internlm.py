@@ -1,6 +1,19 @@
-# InternLM-Chat-7B
-# InternLM-Chat-7B-v1.1
-# InternLM-Chat-20B
+"""书生·浦语系列对话模型的接口实现
+
+- 模型列表
+    - InternLM-Chat-7B
+    - InternLM-Chat-7B-v1.1
+    - InternLM-Chat-20B
+
+- 实现类
+    - class InternLMModelAdapter
+        实现书生系列对话模型及其微调插件（PEFT adapter）与分词器（tokenizer）的加载
+    - class InternLMPromptAdapter
+        实现书生系列对话模型对话提示词模板的加载
+    - class InternLM
+        实现书生系列对话模型的流式文本生成接口
+"""
+
 
 import gc
 import json
@@ -234,55 +247,66 @@ class InternLM(BaseChatModel):
         context_len: int,
         stream_interval: int = 2,
     ): 
-        """参考api-for-open-llm和fastchat两个项目的流式文本生成实现"""
+        """流式文本生成接口实现（参考 api-for-open-llm 和 fastchat 两个项目）"""
+        # 这里是 FastChat 项目中自行实现的解码过程，不像 Transformers 中的 generate 支持大量的解码策略
+        # 接收OpenAI格式API的入参，因此这里仅支持单条输入语句调用，不支持batch并行
+
+        if hasattr(model, "device"): 
+            device = model.device
 
         # ======================================================================
         # 文本生成相关参数
         # ======================================================================
-        prompt = gen_params["prompt"]
-        temperature = float(gen_params.get("temperature", 1.0))
-        repetition_penalty = float(gen_params.get("repetition_penalty", 1.0))
-        top_p = float(gen_params.get("top_p", 1.0))
-        top_k = int(gen_params.get("top_k", -1))  # -1 means disable
-        max_new_tokens = int(gen_params.get("max_tokens", 256))
-        echo = bool(gen_params.get("echo", True))
-        stop_str = gen_params.get("stop", None)
-
-        stop_token_ids = gen_params.get("stop_token_ids", None) or []
+        prompt = gen_params["prompt"]                                            # 输入文本
+        len_prompt = len(prompt)
+        temperature = float(gen_params.get("temperature", 1.0))                  # 温度，用于控制生成文本的多样性
+        repetition_penalty = float(gen_params.get("repetition_penalty", 1.0))    # 重复词惩罚，默认值 1.0 表示不产生作用
+        top_p = float(gen_params.get("top_p", 1.0))                              # 用于限定采样范围，按照概率分布将词表从高到低累加概率到 top_p，默认值 1.0 表示不限定范围
+        top_k = int(gen_params.get("top_k", -1))                                 # 用于限定采样范围，按照概率分布将词表从高到低累计数量到 top_k，默认值 -1 表示不限定范围
+        max_new_tokens = int(gen_params.get("max_tokens", 256))                  # 生成文本的最大数量
+        echo = bool(gen_params.get("echo", True))                                # 将输入文本合并到生成结果中一起返回
+        stop_str = gen_params.get("stop", None)                                  # 停止词，生成过程遇到这里给出的词汇就被截停
+        stop_token_ids = gen_params.get("stop_token_ids", None) or []            # 与停止词类似，不过这里给出的是 token ids
         if tokenizer.eos_token_id not in stop_token_ids:
             stop_token_ids.append(tokenizer.eos_token_id)
-
-        infilling = gen_params.get("infilling", False)
-        suffix_first = gen_params.get("suffix_first", False)
 
         logits_processor = prepare_logits_processor(
             temperature, repetition_penalty, top_p, top_k
         )
 
-        if infilling:
-            input_ids = tokenizer(prompt, suffix_first=suffix_first).input_ids
-            stop_token_ids.append(tokenizer.eot_id)
-        else: 
-            input_ids = tokenizer(prompt).input_ids
-        
-        max_src_len = context_len - max_new_tokens - 1
-        input_ids = input_ids[-max_src_len:]
+        input_ids = tokenizer(prompt).input_ids           # 将输入文本转换为 token ids
+        max_src_len = context_len - max_new_tokens - 1    # 最大输入长度
+        input_ids = input_ids[-max_src_len:]              # 如果输入文本过长，就进行截断
         output_ids = list(input_ids)
         input_echo_len = len(input_ids)
 
         # ======================================================================
-        # 文本生成解码
+        # 执行文本生成解码的迭代过程
         # ======================================================================
-        past_key_values = None
+        past_key_values = None    # 存储 KV cache 中间结果
         sent_interrupt = False
+        finish_reason = None      # 结束原因，可能是整句话生成完毕、达到最大长度或者遇到停止词
         for i in range(max_new_tokens): 
 
-            # 生成当前迭代步骤的logits
-            if i == 0:  # 预填充(prefilling)阶段：第0个logits
-                out = model(torch.as_tensor([input_ids], device=device), use_cache=True)
+            # ==================================================================
+            # 迭代过程的第一阶段：生成当前迭代步骤的logits
+            # ==================================================================
+            # 模型前向计算得到的 out 是一个 CausalLMOutputWithPast 对象，在这里只包含 logits 与 past_key_values 两个值。
+            # logits 是通过模型前向计算再叠加 lm head 计算得到的预测得分（prediction scores），包含了词表中每一个 token 的得分
+            #    形状：[batch_size, sequence_length, vocab_size]
+            # past_key_values 是迭代过程积累的一些隐藏状态（具体来说是自注意力层产生的 keys 与 values），可用于加速当前迭代的解码过程。
+            #    形状：2层嵌套元组，(1) 外层元组的元素数量对应模型层数 model_layers，也就是每个元组分别存储模型中一个层的隐藏状态；(2) 内层元组包含2个元素，分别对应 key 和 value 2个张量
+            #        (3) key value 张量的形状：[batch_size, num_heads, sequence_length, embed_size_per_head]
+            if i == 0:  # 预填充（prefilling）阶段：第0个logits
+                out = model(
+                    input_ids=torch.as_tensor(
+                        [input_ids], device=device
+                    ), 
+                    use_cache=True
+                )
                 logits = out.logits
                 past_key_values = out.past_key_values
-            else:       # 解码阶段：
+            else:       # 解码阶段
                 out = model(
                     input_ids=torch.as_tensor(
                         [[token] if not sent_interrupt else output_ids], device=device
@@ -294,7 +318,9 @@ class InternLM(BaseChatModel):
                 logits = out.logits
                 past_key_values = out.past_key_values
             
-            # 对当前迭代生成的logits进行处理，生成下一个token
+            # ==================================================================
+            # 迭代过程的第二阶段：对当前迭代生成的logits进行处理，并采样生成下一个token
+            # ==================================================================
             if logits_processor:
                 if repetition_penalty > 1.0:
                     tmp_output_ids = torch.as_tensor([output_ids], device=logits.device)
@@ -305,22 +331,28 @@ class InternLM(BaseChatModel):
                 last_token_logits = logits[0, -1, :]
 
             if temperature < 1e-5 or top_p < 1e-8:    # 贪婪解码
+                # 贪心取概率最大者对应的下标，作为下一个 token
                 _, indices = torch.topk(last_token_logits, 2)
                 tokens = [int(index) for index in indices.tolist()]
-            else:                                     # multinomial解码
+            else:                                     # 采样
+                # 使用 softmax 将得分放缩为概率分布
                 probs = torch.softmax(last_token_logits, dim=-1)
+                # 使用多项式分布采样方法在概率分布中对下标进行采样，作为下一个 token
                 indices = torch.multinomial(probs, num_samples=2)
                 tokens = [int(token) for token in indices.tolist()]
-
             token = tokens[0]    # 下一个token
             output_ids.append(token)
 
+            # ==================================================================
+            # 迭代过程的第三阶段：判断迭代生成过程是否该停止
+            # ==================================================================
+            # 停止判断1：stop_token_ids
             if token in stop_token_ids:
                 stopped = True
             else:
                 stopped = False
 
-            # Yield the output tokens
+            # 以下一些逻辑的处理时机：每当迭代 stream_interval 次、到达最大长度
             if i % stream_interval == 0 or i == max_new_tokens - 1 or stopped:
                 if echo:
                     tmp_output_ids = output_ids
@@ -329,6 +361,7 @@ class InternLM(BaseChatModel):
                     tmp_output_ids = output_ids[input_echo_len:]
                     rfind_start = 0
 
+                # 将 token ids 转换为对应的文本字符串
                 output = tokenizer.decode(
                     tmp_output_ids,
                     skip_special_tokens=True, 
@@ -336,16 +369,16 @@ class InternLM(BaseChatModel):
                     clean_up_tokenization_spaces=True,
                 )
 
-                # 判断停止词stop
+                # 判断停止词stop，注意其中的边界条件
                 partially_stopped = False
                 if stop_str:
                     if isinstance(stop_str, str):
                         pos = output.rfind(stop_str, rfind_start)
                         if pos != -1:
-                            output = output[:pos]
-                            stopped = True
+                            output = output[:pos]    # 根据停止词对生成文本进行截断
+                            stopped = True           # 中断迭代过程
                         else:
-                            partially_stopped = is_partial_stop(output, stop_str)
+                            partially_stopped = is_partial_stop(output, stop_str)         # 判断当前生成结果文本是否包含停止词的一部分
                     elif isinstance(stop_str, Iterable):
                         for each_stop in stop_str:
                             pos = output.rfind(each_stop, rfind_start)
@@ -354,14 +387,13 @@ class InternLM(BaseChatModel):
                                 stopped = True
                                 break
                             else:
-                                partially_stopped = is_partial_stop(output, each_stop)
+                                partially_stopped = is_partial_stop(output, each_stop)    # 判断当前生成结果文本是否包含某个停止词的一部分
                                 if partially_stopped:
                                     break
                     else:
                         raise ValueError("Invalid stop field type.")
 
-                # Prevent yielding partial stop sequence
-                if not partially_stopped:
+                if not partially_stopped:    # 避免出现传出文本中包含停止词的一部分的情况
                     yield {
                         "text": output,
                         "usage": {
@@ -369,17 +401,17 @@ class InternLM(BaseChatModel):
                             "completion_tokens": i,
                             "total_tokens": input_echo_len + i,
                         },
-                        "finish_reason": None,
+                        "finish_reason": None,     # 流式生成迭代过程中传出的是中间结果，因此不包含 finish_reason
                     }
 
             if stopped:
                 break
 
-        # Finish stream event, which contains finish reason
-        if i == max_new_tokens - 1:    # 模型生成达到最大长度
-            finish_reason = "length"
+        # 流式生成过程结束，因此传出结果中包含 finish_reason
+        if i == max_new_tokens - 1: 
+            finish_reason = "length"    # 模型生成达到最大长度
         elif stopped:
-            finish_reason = "stop"     # 停止词截停（包括eos？）
+            finish_reason = "stop"      # 停止词截停（包括eos）
         else:
             finish_reason = None
 
@@ -393,11 +425,11 @@ class InternLM(BaseChatModel):
             "finish_reason": finish_reason,
         }
 
-        # Clean
+        # 在流式迭代结束后，进行一次垃圾回收
         del past_key_values, out
         gc.collect()
         torch.cuda.empty_cache()
     
     def _generate_stream_v2(): 
-        """transformers"""
+        """基于 transformers 官方提供的 TextIteratorStreamer 接口"""
         raise NotImplementedError

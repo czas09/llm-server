@@ -51,7 +51,7 @@ def prepare_logits_processor(
 
 
 def is_partial_stop(output: str, stop_str: str):
-    """Check whether the output contains a partial stop str."""
+    """判断当前生成结果文本是否包含停止词的一部分"""
     for i in range(0, min(len(output), len(stop_str))):
         if stop_str.startswith(output[-i:]):
             return True

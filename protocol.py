@@ -92,8 +92,8 @@ class ChatCompletionRequest(BaseModel):
     # function_call: Union[str, Dict[str, str]] = "auto"
 
     # Additional parameters support for stop generation
-    stop_token_ids: Optional[List[int]] = None
-    repetition_penalty: Optional[float] = 1.1       # 作用与 stop 类似，但这里指定的是 token_ids
+    stop_token_ids: Optional[List[int]] = None      # 作用与 stop 类似，但这里指定的是 token_ids
+    repetition_penalty: Optional[float] = 1.1       # 重复词惩罚
 
     # Additional parameters supported by vLLM
     best_of: Optional[int] = None
