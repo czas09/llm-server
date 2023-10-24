@@ -1,24 +1,10 @@
 # Baichuan2-7B-Chat
 # Baichuan2-13B-Chat
 
-import json
-from typing import Optional, List
+from typing import Optional
 
-import torch
-from transformers import (
-    AutoModel,
-    AutoConfig,
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    BitsAndBytesConfig,
-)
-from transformers.utils.versions import require_version
-from peft import PeftModel
-from loguru import logger
-
-from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
-from llms.baichuan import BaichuanModelAdapter
-from protocol import ChatMessage, Role
+from llms.base import BasePromptAdapter
+from llms.baichuan import BaichuanModelAdapter, Baichuan
 from config import config
 
 
@@ -32,7 +18,7 @@ class Baichuan2ModelAdapter(BaichuanModelAdapter):
         return "baichuan2"
     
 
-class BaichuanPromptAdapter(BasePromptAdapter): 
+class Baichuan2PromptAdapter(BasePromptAdapter): 
     """
     Baichuan2对话模型的提示词适配
 
@@ -50,9 +36,34 @@ class BaichuanPromptAdapter(BasePromptAdapter):
         self.assistant_prompt = "{}"
         self.stop = {
             "strings": ["<reserved_106>", "<reserved_107>"],
-            "token_ids": [195, 196],
+            "token_ids": [195, 196],    # Baichuan 和 Baichuan2 模型的 role token ids 是一样的
         }
 
 
-class Baichuan2(BaseChatModel): 
-    pass
+class Baichuan2(Baichuan): 
+    """Baichuan2对话模型"""
+
+    def __init__(self): 
+        self.model_adapter: Baichuan2ModelAdapter = self._get_model_adapter()
+        self.model, self.tokenizer = self._get_model_tokenizer()
+        self.prompt_adapter: Baichuan2PromptAdapter = self._get_prompt_adapter()
+        self.device = config.DEVICE
+        self.model_name = config.MODEL_NAME
+        # self.prompt_name = 
+        self.context_len: Optional[int] = config.CONTEXT_LEN
+        self.stream_interval: Optional[int] = config.STREAM_INTERVERL
+        self.use_streamer_v2: Optional[bool] = config.USE_STREAMER_V2
+        self.fix_tokenizer()
+    
+    def _get_model_tokenizer(self): 
+        return self.model_adapter.load_model_tokenizer()
+    
+    def get_model_adapter(): 
+        """获取模型适配"""
+        baichuan_model_adapter = Baichuan2ModelAdapter()
+        return baichuan_model_adapter
+    
+    def get_prompt_adapter(): 
+        """获取提示词适配"""
+        baichuan_prompt_adapter = Baichuan2PromptAdapter()
+        return baichuan_prompt_adapter
