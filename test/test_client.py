@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 # TODO(@zyw): 合并两类模型服务接口的参数格式
-class Params(BaseModel):
+class Params(BaseModel): 
     """模型服务接口参数"""
     prompt: str = "hello"
     queries: List[str] = []
@@ -114,7 +114,7 @@ if __name__ == '__main__':
 
     llm = ChatGLM2(
         host="172.21.4.23", 
-        port=10270, 
+        port=10373, 
         timeout=2.0
     )
 

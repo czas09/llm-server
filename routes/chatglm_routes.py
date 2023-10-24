@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from loguru import logger
 
+from models.chat_model import CHAT_MODEL
 from routes.utils import load_model_on_gpus
 from config import config
 
@@ -84,11 +85,13 @@ async def post_batch_chat(params: Params) -> List[str]:
 
 
 @chatglm_router.post("/")
-async def create_item(request: Request):
-    global model, tokenizer
+async def create_item(request: Request): 
+
+    # global model, tokenizer
     json_post_raw = await request.json()
     json_post = json.dumps(json_post_raw)
     json_post_list = json.loads(json_post)
+
     prompt = json_post_list.get('prompt')
     history = json_post_list.get('history')
     max_length = json_post_list.get('max_length')
@@ -96,8 +99,9 @@ async def create_item(request: Request):
     temperature = json_post_list.get('temperature')
     repetition_penalty = json_post_list.get('repetition_penalty')
     max_time = json_post_list.get('max_time')
-    response, history = model.chat(
-        tokenizer,
+
+    response, history = CHAT_MODEL.model.chat(
+        CHAT_MODEL.tokenizer,
         prompt,
         history=history,
         max_length=max_length if max_length else 2048,
@@ -106,6 +110,7 @@ async def create_item(request: Request):
         repetition_penalty=repetition_penalty if repetition_penalty else 1.0, 
         max_time=max_time if max_time else 60.0
     )
+
     now = datetime.now()
     time = now.strftime("%Y-%m-%d %H:%M:%S")
     answer = dict(
@@ -116,13 +121,15 @@ async def create_item(request: Request):
     )
     logger.info("[{}] , prompt:\"{}\", response:\"{}\"".format(time, prompt, repr(response)))
     torch_gc()
+
     return answer
 
 
-async def create_chat(params: Params) -> Answer:
-    global model, tokenizer
-    response, history = model.chat(
-        tokenizer,
+async def create_chat(params: Params) -> Answer: 
+
+    # global model, tokenizer
+    response, history = CHAT_MODEL.model.chat(
+        CHAT_MODEL.tokenizer,
         params.prompt,
         history=params.history,
         max_length=params.max_length,
@@ -140,9 +147,9 @@ async def create_chat(params: Params) -> Answer:
 
 
 async def create_stream_chat(params: Params) -> AsyncGenerator: 
-    global model, tokenizer
-    for response, history in model.stream_chat(
-        tokenizer,
+    # global model, tokenizer
+    for response, history in CHAT_MODEL.model.stream_chat(
+        CHAT_MODEL.tokenizer,
         params.prompt,
         history=params.history,
         max_length=params.max_length,
@@ -157,7 +164,8 @@ async def create_stream_chat(params: Params) -> AsyncGenerator:
 
 
 async def batch_chat_chatglm2(params: Params) -> List[str]: 
-    global model, tokenizer, logits_processor
+    # global model, tokenizer, 
+    global logits_processor
     
     gen_kwargs = dict(
         max_length=params.max_length,
@@ -171,11 +179,11 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
     batch_inputs = []
     history = []
     for query in params.queries:
-        input = tokenizer.build_prompt(query, history=history)
+        input = CHAT_MODEL.tokenizer.build_prompt(query, history=history)
         batch_inputs.append(input)
 
-    batch_input_ids = tokenizer(batch_inputs, return_tensors='pt', padding=True).to(torch.device('cuda'))
-    batch_output_ids = model.generate(**batch_input_ids, **gen_kwargs).tolist()
+    batch_input_ids = CHAT_MODEL.tokenizer(batch_inputs, return_tensors='pt', padding=True).to(torch.device('cuda'))
+    batch_output_ids = CHAT_MODEL.model.generate(**batch_input_ids, **gen_kwargs).tolist()
 
     output_ids_list = []
     for input_ids, output_ids in zip(batch_input_ids["input_ids"], batch_output_ids):
@@ -183,7 +191,7 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
         output_ids_list.append(torch.LongTensor(output_ids))
 
     batch_output_ids = torch.stack(output_ids_list)
-    outputs = tokenizer.batch_decode(batch_output_ids, skip_special_tokens=True)
+    outputs = CHAT_MODEL.tokenizer.batch_decode(batch_output_ids, skip_special_tokens=True)
 
     responses = []
     for output in outputs:
@@ -193,15 +201,15 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
     return responses
 
 
-if "chatglm" in config.MODEL_NAME: 
-    # 加载模型
-    model_dir = config.MODEL_PATH
-    num_gpus = config.NUM_GPUS
-    tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
-    model = load_model_on_gpus(model_dir, num_gpus=num_gpus)
-    model.eval()
+# if "chatglm" in config.MODEL_NAME: 
+#     # 加载模型
+#     model_dir = config.MODEL_PATH
+#     num_gpus = config.NUM_GPUS
+#     tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+#     model = load_model_on_gpus(model_dir, num_gpus=num_gpus)
+#     model.eval()
 
-    # 创建Logits处理器
-    logits_processor = LogitsProcessorList()
-    logits_processor.append(InvalidScoreLogitsProcessor())
-    logits_processor = logits_processor
+# 创建Logits处理器
+logits_processor = LogitsProcessorList()
+logits_processor.append(InvalidScoreLogitsProcessor())
+logits_processor = logits_processor
