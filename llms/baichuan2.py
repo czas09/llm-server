@@ -17,17 +17,15 @@ from peft import PeftModel
 from loguru import logger
 
 from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
+from llms.baichuan import BaichuanModelAdapter
 from protocol import ChatMessage, Role
-from config import MODEL_NAME, MODEL_PATH
+from config import config
 
 
-class Baichuan2ModelAdapter(BaseModelAdapter): 
+class Baichuan2ModelAdapter(BaichuanModelAdapter): 
     """
     Baichuan2对话模型的模型适配
     """
-    
-    def load_lora_model(self, model_path, adapter_path, model_kwargs): 
-        return PeftModel.from_pretrained(model_path, adapter_path)
 
     @property
     def model_type(self): 
