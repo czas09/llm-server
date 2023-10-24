@@ -57,6 +57,10 @@ class BasePromptAdapter:
             prompt += self.user_prompt.format("\n".join(user_content))
         
         return prompt
+    
+    def get_model_inputs(self): 
+        """将组装好的输入文本转换为对应的 token ids"""
+        raise NotImplementedError
 
 
 class BaseModelAdapter: 

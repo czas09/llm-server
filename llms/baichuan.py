@@ -154,7 +154,7 @@ class BaichuanPromptAdapter(BasePromptAdapter):
         self.assistant_prompt = "{}"
         self.stop = {
             "strings": ["<reserved_102>", "<reserved_103>"], 
-            "token_ids": [195, 196], 
+            "token_ids": [195, 196],    # Baichuan 和 Baichuan2 模型的 role token ids 是一样的
         }
 
 

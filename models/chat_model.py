@@ -47,7 +47,7 @@ def get_chat_model_with_vllm():    # TODO(@zyw)
         from vllm.engine.async_llm_engine import AsyncLLMEngine
         from vllm.transformers_utils.tokenizer import get_tokenizer
     except ImportError:
-        return None
+        return None    # TODO(@zyw)
     
     engine_args = AsyncEngineArgs(
         model=config.MODEL_PATH,
@@ -70,7 +70,16 @@ def get_chat_model_with_vllm():    # TODO(@zyw)
         trust_remote_code=True,
     )
 
-    if "internlm" in config.MODEL_NAME: 
+    # 对话模型本体的加载是统一的，这里分别加载各自的 PromptAdapter 类
+    if "baichuan2" in config.MODEL_NAME: 
+        from llms.baichuan2 import Baichuan2PromptAdapter
+        vllm_model.prompt_adapter = Baichuan2PromptAdapter()
+
+    if "baichuan" in config.MODEL_NAME: 
+        from llms.baichuan import BaichuanPromptAdapter
+        vllm_model.prompt_adapter = BaichuanPromptAdapter()
+
+    elif "internlm" in config.MODEL_NAME: 
         from llms.internlm import InternLMPromptAdapter
         vllm_model.prompt_adapter = InternLMPromptAdapter()
 

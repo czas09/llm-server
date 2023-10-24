@@ -234,6 +234,8 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
 
 async def get_model_inputs(request, prompt, model_name):
     max_input_tokens = CHAT_MODEL.max_model_len - request.max_tokens
+
+    # TODO(@zyw): 各个对话模型在 PromprAdapter 类中自行实现 prompt_to_token_ids 接口 
     if isinstance(prompt, str):
         if getattr(request, "infilling", False):
             input_ids = CHAT_MODEL.engine.tokenizer(
