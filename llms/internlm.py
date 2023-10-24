@@ -43,7 +43,6 @@ class InternLMModelAdapter(BaseModelAdapter):
         model_path: str = config.MODEL_PATH, 
         adapter_path: Optional[str] = config.ADAPTER_PATH, 
         **kwargs): 
-        
 
         # ======================================================================
         # 加载tokenizer
@@ -204,7 +203,6 @@ class InternLMPromptAdapter(BasePromptAdapter):
         self.stop = {
             "strings": ["</s>", "<eoa>"],
         }
-
 
 
 class InternLM(BaseChatModel): 
