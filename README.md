@@ -7,7 +7,8 @@
   * Baichuan
   * Qwen
   * InternLM
-  * Xverse
+  * XVERSE
+  * Aquila
   * ...
   * 支持自定义模型 TODO
 * 支持加载PEFT模型
@@ -25,13 +26,15 @@
 | ----------         | ----- | :---: | :---: | :---: |
 | ChatGLM-6B         | ChatGLM style <br> OpenAI style (WIP) | HF Transformers | √ | √ |
 | ChatGLM2-6b        | ChatGLM style <br> OpenAI style (WIP) | HF Transformers | √ | √ |
-| Baichuan-13B-Chat  | WIP
-| Baichuan2-7B-Chat  | WIP
-| Baichuan2-13B-Chat | WIP
+| Baichuan-13B-Chat  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
+| Baichuan2-7B-Chat  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
+| Baichuan2-13B-Chat | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | Qwen-7B-Chat       | WIP
 | Qwen-14B-Chat      | WIP
 | InternLM-Chat-7B   | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | InternLM-Chat-20B  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
+| XVERSE-13B-Chat    | WIP
+| XVERSE-7B-Chat     | WIP
 | AquilaChat2-7B     | WIP
 | AquilaChat2-34B    | WIP
 
