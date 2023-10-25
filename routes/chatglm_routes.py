@@ -11,7 +11,6 @@ import json
 from typing import AsyncGenerator, List
 
 import torch
-from transformers import AutoTokenizer, AutoModel
 from transformers.generation.logits_process import LogitsProcessor
 from transformers.generation.utils import LogitsProcessorList
 from fastapi import Request, APIRouter
@@ -20,7 +19,7 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 from models.chat_model import CHAT_MODEL
-from routes.utils import load_model_on_gpus
+# from routes.utils import load_model_on_gpus
 from config import config
 
 
@@ -36,7 +35,7 @@ class Params(BaseModel):
     queries: List[str] = []
     history: List[List[str]] = []
     max_length: int = 8192
-    top_p: float = 0.7
+    top_p: float = 0.7 
     temperature: float = 0.97
     repetition_penalty: float = 1.0
     num_beams: int = 1
@@ -51,14 +50,6 @@ class Answer(BaseModel):
     history: List[List[str]] = []
 
 
-class InvalidScoreLogitsProcessor(LogitsProcessor):
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
-        if torch.isnan(scores).any() or torch.isinf(scores).any():
-            scores.zero_()
-            scores[..., 5] = 5e4
-        return scores
-
-
 def torch_gc(): 
     if torch.cuda.is_available(): 
         for i in range(config.NUM_GPUS): 
@@ -67,68 +58,71 @@ def torch_gc():
                 torch.cuda.ipc_collect()
 
 
+# 非流式接口
 @chatglm_router.post("/chat")
 async def post_chat(params: Params) -> Answer: 
     answer = await create_chat(params)
     return answer
 
 
+# 流式接口
 @chatglm_router.post("/stream_chat")
 async def post_stream_chat(params: Params) -> StreamingResponse: 
     return StreamingResponse(create_stream_chat(params))
 
 
+# 批量调用接口（目前仅支持 ChatGLM2）
 @chatglm_router.post("/batch_chat")
 async def post_batch_chat(params: Params) -> List[str]: 
     answer_list = await batch_chat_chatglm2(params)
     return answer_list
 
 
-@chatglm_router.post("/")
-async def create_item(request: Request): 
+# # 非流式接口
+# @chatglm_router.post("/")
+# async def create_item(request: Request): 
 
-    # global model, tokenizer
-    json_post_raw = await request.json()
-    json_post = json.dumps(json_post_raw)
-    json_post_list = json.loads(json_post)
+#     # global model, tokenizer
+#     json_post_raw = await request.json()
+#     json_post = json.dumps(json_post_raw)
+#     json_post_list = json.loads(json_post)
 
-    prompt = json_post_list.get('prompt')
-    history = json_post_list.get('history')
-    max_length = json_post_list.get('max_length')
-    top_p = json_post_list.get('top_p')
-    temperature = json_post_list.get('temperature')
-    repetition_penalty = json_post_list.get('repetition_penalty')
-    max_time = json_post_list.get('max_time')
+#     prompt = json_post_list.get('prompt')
+#     history = json_post_list.get('history')
+#     max_length = json_post_list.get('max_length')
+#     top_p = json_post_list.get('top_p')
+#     temperature = json_post_list.get('temperature')
+#     repetition_penalty = json_post_list.get('repetition_penalty')
+#     max_time = json_post_list.get('max_time')
 
-    response, history = CHAT_MODEL.model.chat(
-        CHAT_MODEL.tokenizer,
-        prompt,
-        history=history,
-        max_length=max_length if max_length else 2048,
-        top_p=top_p if top_p else 0.7,
-        temperature=temperature if temperature else 0.95,
-        repetition_penalty=repetition_penalty if repetition_penalty else 1.0, 
-        max_time=max_time if max_time else 60.0
-    )
+#     response, history = CHAT_MODEL.model.chat(
+#         CHAT_MODEL.tokenizer,
+#         prompt,
+#         history=history,
+#         max_length=max_length if max_length else 2048,
+#         top_p=top_p if top_p else 0.7,
+#         temperature=temperature if temperature else 0.95,
+#         repetition_penalty=repetition_penalty if repetition_penalty else 1.0, 
+#         max_time=max_time if max_time else 60.0
+#     )
 
-    now = datetime.now()
-    time = now.strftime("%Y-%m-%d %H:%M:%S")
-    answer = dict(
-        response=response,
-        history=history,
-        status=200,
-        time=time
-    )
-    logger.info("[{}] , prompt:\"{}\", response:\"{}\"".format(time, prompt, repr(response)))
-    torch_gc()
+#     now = datetime.now()
+#     time = now.strftime("%Y-%m-%d %H:%M:%S")
+#     answer = dict(
+#         response=response,
+#         history=history,
+#         status=200,
+#         time=time
+#     )
+#     logger.info("[{}] , prompt:\"{}\", response:\"{}\"".format(time, prompt, repr(response)))
+#     torch_gc()
 
-    return answer
+#     return answer
 
 
 async def create_chat(params: Params) -> Answer: 
 
-    # global model, tokenizer
-    response, history = CHAT_MODEL.model.chat(
+    response, history = CHAT_MODEL.model.chat(    # 这里调用的是 ChatGLM 模型官方实现的对话接口
         CHAT_MODEL.tokenizer,
         params.prompt,
         history=params.history,
@@ -147,8 +141,8 @@ async def create_chat(params: Params) -> Answer:
 
 
 async def create_stream_chat(params: Params) -> AsyncGenerator: 
-    # global model, tokenizer
-    for response, history in CHAT_MODEL.model.stream_chat(
+
+    for response, history in CHAT_MODEL.model.stream_chat(    # 这里调用的是 ChatGLM 模型官方实现的流式对话接口
         CHAT_MODEL.tokenizer,
         params.prompt,
         history=params.history,
@@ -164,8 +158,21 @@ async def create_stream_chat(params: Params) -> AsyncGenerator:
 
 
 async def batch_chat_chatglm2(params: Params) -> List[str]: 
-    # global model, tokenizer, 
-    global logits_processor
+    """实现 ChatGLM2 模型的批量调用能力
+    TODO 对 ChatGLM 模型进行支持
+    """
+
+    class InvalidScoreLogitsProcessor(LogitsProcessor):
+        def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+            if torch.isnan(scores).any() or torch.isinf(scores).any():
+                scores.zero_()
+                scores[..., 5] = 5e4
+            return scores
+
+    # 创建Logits处理器
+    logits_processor = LogitsProcessorList()
+    logits_processor.append(InvalidScoreLogitsProcessor())
+    logits_processor = logits_processor
     
     gen_kwargs = dict(
         max_length=params.max_length,
@@ -178,8 +185,8 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
 
     batch_inputs = []
     history = []
-    for query in params.queries:
-        input = CHAT_MODEL.tokenizer.build_prompt(query, history=history)
+    for query in params.queries: 
+        input = CHAT_MODEL.tokenizer.build_prompt(query, history=history)    # ChatGLM 1/2 是这里不同，build_prompt 是 2代实现的接口
         batch_inputs.append(input)
 
     batch_input_ids = CHAT_MODEL.tokenizer(batch_inputs, return_tensors='pt', padding=True).to(torch.device('cuda'))
@@ -199,17 +206,3 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
         responses.append(output)
     torch_gc()
     return responses
-
-
-# if "chatglm" in config.MODEL_NAME: 
-#     # 加载模型
-#     model_dir = config.MODEL_PATH
-#     num_gpus = config.NUM_GPUS
-#     tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
-#     model = load_model_on_gpus(model_dir, num_gpus=num_gpus)
-#     model.eval()
-
-# 创建Logits处理器
-logits_processor = LogitsProcessorList()
-logits_processor.append(InvalidScoreLogitsProcessor())
-logits_processor = logits_processor
