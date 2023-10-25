@@ -1,12 +1,10 @@
 """对话模型接口：以 vLLM 为推理引擎"""
 
 
-import json
-import base64
 import time
 from typing import AsyncGenerator, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from vllm.outputs import RequestOutput
@@ -15,16 +13,7 @@ from vllm.utils import random_uuid
 
 from models.chat_model import CHAT_MODEL
 from config import config
-# from api.apapter.react import (
-#     check_function_call,
-#     build_function_call_messages,
-#     build_chat_message,
-#     build_delta_message,
-# )
 from protocol import (
-    ModelCard,
-    ModelList,
-    # ModelPermission,
     ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionResponseStreamChoice,
@@ -35,7 +24,6 @@ from protocol import (
     UsageInfo,
     Role,
 )
-from utils.utils import check_requests, create_error_response, ErrorCode
 
 
 logger.add("./service.log", level='INFO')
@@ -59,16 +47,19 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     if len(request.messages) < 1 or request.messages[-1].role not in [Role.USER]:
         raise HTTPException(status_code=400, detail="Invalid request")
 
-    # TODO
-    # prompt = await get_gen_prompt(request, MODEL_NAME.lower())
-    prompt = CHAT_MODEL.prompt_adapter.construct_prompt(request.messages)
+    # TODO(@zyw): 组装提示词的流程
+    # 为百川和千问打补丁，尝试找到更好的写法
+    if any(m in config.MODEL_NAME for m in ["baichuan", "qwen"]): 
+        prompt = request.messages
+    else: 
+        prompt = CHAT_MODEL.prompt_adapter.construct_prompt(request.messages)
+
     request.max_tokens = request.max_tokens or 512
     token_ids, error_check_ret = await get_model_inputs(request, prompt, config.MODEL_NAME.lower())
     if error_check_ret is not None:
         return error_check_ret
 
     # 处理停止词：stop 和 stop_token_ids
-    # stop settings
     stop, stop_token_ids = [], []
     if CHAT_MODEL.prompt_adapter.stop is not None: 
         stop_token_ids = CHAT_MODEL.prompt_adapter.stop.get("token_ids", [])
@@ -246,19 +237,23 @@ async def get_model_inputs(request, prompt, model_name):
             input_ids = CHAT_MODEL.engine.tokenizer(prompt).input_ids[-max_input_tokens:]  # truncate left
     elif isinstance(prompt[0], int):
         input_ids = prompt[-max_input_tokens:]  # truncate left
-    # else:
-    #     if "baichuan-13b" in model_name:
-    #         input_ids = build_baichuan_chat_input(
-    #             VLLM_ENGINE.engine.tokenizer,
-    #             prompt,
-    #             max_new_tokens=request.max_tokens,
-    #         )
-    #     elif "qwen" in model_name:
-    #         input_ids = build_qwen_chat_input(
-    #             VLLM_ENGINE.engine.tokenizer,
-    #             prompt,
-    #             max_new_tokens=request.max_tokens,
-    #         )
-    #     else:
-    #         raise ValueError(f"Model not supported yet: {model_name}")
+    
+    # TODO(@zyw): 这里也是对百川和千问打的补丁，尝试找到更好的写法
+    else:
+        if "baichuan" in model_name: 
+            from llms.utils import build_baichuan_chat_input
+            input_ids = build_baichuan_chat_input(
+                CHAT_MODEL.engine.tokenizer,
+                prompt,
+                max_new_tokens=request.max_tokens,
+            )
+        elif "qwen" in model_name: 
+            from llms.utils import build_qwen_chat_input
+            input_ids = build_qwen_chat_input(
+                CHAT_MODEL.engine.tokenizer,
+                prompt,
+                max_new_tokens=request.max_tokens,
+            )
+        else:
+            raise ValueError(f"Model not supported yet: {model_name}")
     return input_ids, None
