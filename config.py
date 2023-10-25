@@ -1,3 +1,4 @@
+import argparse
 import configparser
 from enum import auto
 import os
@@ -11,6 +12,16 @@ logger.add("./service.log", level='INFO')
 
 config = configparser.ConfigParser()
 config.read("./configs/configs.ini", encoding='utf-8')
+
+
+def fake_argparser(): 
+    """在命令行启动指令中添加一些提示信息"""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, help="大模型名称")
+    parser.add_argument("--port", type=int, help="大模型服务端口")
+    parser.add_argument("--gpu_id", type=int, help="GPU 序号")
+    parser.add_argument("--engine", type=str, help="大模型推理引擎")
 
 
 # TODO(@zyw): 各个参数项的缺省值
@@ -41,6 +52,10 @@ DEFAULT_CONFIGS = {
     "CONTEXT_LEN": 2048, 
     "STREAM_INTERVERL": 2, 
     # PROMPT_NAME
+
+    # 文本向量化模型相关配置项
+    "EMBED_MODEL_NAME": None, 
+    "EMBED_MODEL_PATH": None, 
 
     # ==============================================================================
     # 推理引擎相关
@@ -116,6 +131,14 @@ class Config:
         self.STREAM_INTERVERL = config.getint("MODEL", "stream_interval") \
             if config.get("MODEL", "stream_interval") != "" else DEFAULT_CONFIGS["STREAM_INTERVERL"]
         # self.PROMPT_NAME = config_parser.get("MODEL", "")    # TODO(@zyw)
+
+        # TODO(@zyw): 整合文本向量化模型服务
+        # self.EMBED_MODEL_NAME = config.get("MODEL", "embed_model_name") \
+        #     if config.get("MODEL", "embed_model_name") != "" else DEFAULT_CONFIGS["EMBED_MODEL_NAME"]
+        # embed_model_paths = [os.path.join(root, EMBEDDING_MODEL_NAME_MAP[self.MODEL_NAME]) for root in CHAT_MODEL_ROOTS]
+        # embed_model_path = [path for path in embed_model_paths if os.path.isdir(path)][0]
+        # self.EMBED_MODLE_PATH = config.get("MODEL", "embed_model_path") \
+        #     if config.get("MODEL", "embed_model_path") != "" else embed_model_path
 
         # ==============================================================================
         # 推理引擎相关
