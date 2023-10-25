@@ -228,6 +228,7 @@ class BaseChatModel:
         # self.use_streamer_v2: Optional[bool] = False    # TODO(@zyw): Transformers提供的流式实现
         self.model_adapter: BaseModelAdapter = None
         self.prompt_adapter: BasePromptAdapter = None
+        self.do_construct_prompt: bool = True             # TODO(@zyw): 不同模型组装prompt不一样，找到更好的写法
         raise NotImplementedError
     
     def fix_tokenizer(self): 
@@ -243,7 +244,7 @@ class BaseChatModel:
             logger.info("Add pad token: {}".format(self.tokenizer.pad_token))
     
     def construct_prompt(self, messages: List[ChatMessage]) -> Union[str, List[ChatMessage]]: 
-        return self.prompt_adapter.construct_prompt(messages) if self.construct_prompt else messages
+        return self.prompt_adapter.construct_prompt(messages) if self.do_construct_prompt else messages
     
     def chat(self, gen_params): 
         for x in self.stream_chat(gen_params): 

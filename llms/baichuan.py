@@ -2,7 +2,6 @@
 
 import gc
 import json
-import os.path
 from typing import Optional, Iterable
 
 import torch
@@ -108,6 +107,16 @@ class BaichuanModelAdapter(BaseModelAdapter):
             config.pre_seq_len = prefix_encoder_config['pre_seq_len']
             config.prefix_projection = prefix_encoder_config['prefix_projection']
 
+        # ======================================================================
+        # 加载模型
+        # ======================================================================
+        model = self.model_class.from_pretrained(
+            model_path,
+            config=config,
+            trust_remote_code=True,
+            **config_kwargs
+        )
+
         if device == "cpu":
             model = model.float()
 
@@ -171,6 +180,7 @@ class Baichuan(BaseChatModel):
         self.context_len: Optional[int] = config.CONTEXT_LEN
         self.stream_interval: Optional[int] = config.STREAM_INTERVERL
         self.use_streamer_v2: Optional[bool] = config.USE_STREAMER_V2
+        self.do_construct_prompt: bool = False
         self.fix_tokenizer()
     
     def _get_model_tokenizer(self): 
@@ -225,7 +235,6 @@ class Baichuan(BaseChatModel):
 
         # TODO(@zyw): 优化这里的调用逻辑
         input_ids = build_baichuan_chat_input(tokenizer, prompt, context_len, max_new_tokens)
-        input_ids = tokenizer(prompt).input_ids           # 将输入文本转换为 token ids
         max_src_len = context_len - max_new_tokens - 1    # 最大输入长度
         input_ids = input_ids[-max_src_len:]              # 如果输入文本过长，就进行截断
         output_ids = list(input_ids)

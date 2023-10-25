@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from routes import model_router
-from config import config
+from config import config, fake_argparser
 
 
 app = FastAPI()
@@ -43,5 +43,7 @@ else:
 
 if __name__ == '__main__': 
     import uvicorn
+
+    fake_argparser()
 
     uvicorn.run(app, host=config.SERVICE_HOST, port=config.SERVICE_PORT)

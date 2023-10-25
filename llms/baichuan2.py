@@ -53,17 +53,18 @@ class Baichuan2(Baichuan):
         self.context_len: Optional[int] = config.CONTEXT_LEN
         self.stream_interval: Optional[int] = config.STREAM_INTERVERL
         self.use_streamer_v2: Optional[bool] = config.USE_STREAMER_V2
+        self.do_construct_prompt: bool = False
         self.fix_tokenizer()
     
     def _get_model_tokenizer(self): 
         return self.model_adapter.load_model_tokenizer()
     
-    def get_model_adapter(): 
+    def _get_model_adapter(self): 
         """获取模型适配"""
         baichuan_model_adapter = Baichuan2ModelAdapter()
         return baichuan_model_adapter
     
-    def get_prompt_adapter(): 
+    def _get_prompt_adapter(self): 
         """获取提示词适配"""
         baichuan_prompt_adapter = Baichuan2PromptAdapter()
         return baichuan_prompt_adapter
