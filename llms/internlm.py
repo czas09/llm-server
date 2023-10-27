@@ -18,7 +18,7 @@
 import gc
 import json
 import os.path
-from typing import Optional, Iterable
+from typing import Iterable, List, Optional
 
 import torch
 from transformers import (
@@ -203,6 +203,16 @@ class InternLMPromptAdapter(BasePromptAdapter):
         self.stop = {
             "strings": ["</s>", "<eoa>"],
         }
+
+    # TODO(@zyw): 针对 ChatGLM 风格接口
+    # def build_prompt(self, query: str, history: Optional[List[List[str]]] = None): 
+
+    #     prompt = ""
+    #     # 在 prompt 中拼接历史消息
+    #     for record in history: 
+    #         prompt += f"""<|User|>:{record[0]}<eoh>\n<|Bot|>:{record[1]}<eoa>\n"""
+    #     # 在 prompt 中拼接最新的 query 消息
+    #     prompt += f"""<|User|>:{query}<eoh>\n<|Bot|>:"""
 
 
 class InternLM(BaseChatModel): 

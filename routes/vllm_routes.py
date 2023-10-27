@@ -2,7 +2,7 @@
 
 
 import time
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -13,7 +13,7 @@ from vllm.utils import random_uuid
 
 from models.chat_model import CHAT_MODEL
 from config import config
-from protocol import (
+from protocols import (
     ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionResponseStreamChoice,
@@ -24,6 +24,7 @@ from protocol import (
     UsageInfo,
     Role,
 )
+from protocols import BatchParamsForvLLM, BatchAnswer
 
 
 logger.add("./service.log", level='INFO')
@@ -32,6 +33,17 @@ logger.add("./service.log", level='INFO')
 # - /v1/chat/completions
 openai_router = APIRouter(prefix="/chat")
 
+# TODO(@zyw)
+# # ChatGLM 风格接口：
+# # - /chat           x
+# # - /stream_chat    x
+# # - /batch_chat     v 目前仅实现批量推理接口即可满足需求
+# chatglm_router = APIRouter()
+
+
+# ==============================================================================
+# OpenAI 风格接口的实现
+# ==============================================================================
 
 @openai_router.post("/completions")
 async def create_chat_completion(request: ChatCompletionRequest, raw_request: Request) -> ChatCompletionResponse: 
@@ -257,3 +269,86 @@ async def get_model_inputs(request, prompt, model_name):
         else:
             raise ValueError(f"Model not supported yet: {model_name}")
     return input_ids, None
+
+
+# ==============================================================================
+# ChatGLM 风格接口的实现
+# ==============================================================================
+
+# TODO(@zyw): (2023-10-27) 基于 vLLM 引擎的批量调用接口目前无法实现
+# vLLM 加载模型使用的是 AsyncLLMEngine 类，这个类提供了异步文本生成的能力，
+# 但是只能传入单条输入，不支持多条文本输入批量传入
+
+# @chatglm_router.post("batch_chat")
+# async def create_batch_chat(request: BatchParamsForvLLM) -> List[str]: 
+#     """ChatGLM 风格的批量调用接口
+    
+#     TODO(@zyw): 暂时不考虑对话历史信息？
+#     """
+
+#     logger.info(f"接收批量请求：{repr(request.queries)}")
+
+#     # TODO(@zyw): 参数校验
+#     if "interlm" not in config.MODEL_NAME: 
+#         raise NotImplementedError("基于 vLLM 引擎的批量调用接口当前仅对 InternLM 模型开放！")
+
+#     # TODO(@zyw): 入参对齐
+#     # 从 ChatGLM 风格的参数列表 Params 对接到 vLLM 引擎的入参列表
+    
+#     # TODO(@zyw): 组装提示词
+#     # 当前仅对 InternLM 模型进行支持
+#     batch_prompts = []
+#     # history = []
+#     for query in request.queries: 
+#         prompt = CHAT_MODEL.prompt_adapter.build_prompt(query, history=[])    # history 字段在 build_prompt 接口内部有支持，但是并行接口参数目前不支持
+#         batch_prompts.append(prompt)
+    
+#     batch_input_ids = CHAT_MODEL.engine.tokenizer(
+#         batch_prompts, 
+#         suffix_first=getattr(request, "suffix_first", False)
+#     ).input_ids
+
+#     # 处理停止词：stop 和 stop_token_ids
+#     stop, stop_token_ids = [], []
+#     if CHAT_MODEL.prompt_adapter.stop is not None: 
+#         stop_token_ids = CHAT_MODEL.prompt_adapter.stop.get("token_ids", [])
+#         stop = CHAT_MODEL.prompt_adapter.stop.get("strings", [])
+
+#     request.stop = request.stop or []
+#     if isinstance(request.stop, str): 
+#         request.stop = [request.stop]
+#     request.stop = list(set(stop + request.stop))
+
+#     request.stop_token_ids = request.stop_token_ids or []
+#     request.stop_token_ids = list(set(stop_token_ids + request.stop_token_ids))
+
+#     # model_name = request.model
+#     request_id = f"cmpl-{random_uuid()}"
+#     created_time = int(time.monotonic())
+#     try:
+#         # SamplingParams 是 vLLM 框架提供的采样参数列表
+#         sampling_params = SamplingParams(
+#             n=request.n,
+#             presence_penalty=request.presence_penalty,
+#             frequency_penalty=request.frequency_penalty,
+#             temperature=request.temperature,
+#             top_p=request.top_p,
+#             stop=request.stop,
+#             stop_token_ids=request.stop_token_ids,
+#             max_tokens=request.max_tokens,
+#             best_of=request.best_of,
+#             top_k=request.top_k,
+#             ignore_eos=request.ignore_eos,
+#             use_beam_search=request.use_beam_search,
+#             skip_special_tokens=request.skip_special_tokens,
+#         )
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+    
+#     # 这里的 CHAT_MODEL 是基于 vllm.AsyncLLMEngine 接口加载的
+#     result_generator = CHAT_MODEL.generate(
+#         # prompt if isinstance(prompt, str) else None,
+#         sampling_params=sampling_params,
+#         request_id=request_id,
+#         prompttoken_ids,
+#     )

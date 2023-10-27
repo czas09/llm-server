@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 from models.chat_model import CHAT_MODEL
+from protocols import Params, BatchParams, Answer
 # from routes.utils import load_model_on_gpus
 from config import config
 
@@ -28,26 +29,6 @@ from config import config
 # - /stream_chat
 # - /batch_chat
 chatglm_router = APIRouter()
-
-
-class Params(BaseModel):
-    prompt: str = "hello"
-    queries: List[str] = []
-    history: List[List[str]] = []
-    max_length: int = 8192
-    top_p: float = 0.7 
-    temperature: float = 0.97
-    repetition_penalty: float = 1.0
-    num_beams: int = 1
-    do_sample: bool = True
-    max_time: float = 60.0
-
-
-class Answer(BaseModel):
-    status: int = 200
-    time: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    response: str
-    history: List[List[str]] = []
 
 
 def torch_gc(): 
@@ -76,48 +57,6 @@ async def post_stream_chat(params: Params) -> StreamingResponse:
 async def post_batch_chat(params: Params) -> List[str]: 
     answer_list = await batch_chat_chatglm2(params)
     return answer_list
-
-
-# # 非流式接口
-# @chatglm_router.post("/")
-# async def create_item(request: Request): 
-
-#     # global model, tokenizer
-#     json_post_raw = await request.json()
-#     json_post = json.dumps(json_post_raw)
-#     json_post_list = json.loads(json_post)
-
-#     prompt = json_post_list.get('prompt')
-#     history = json_post_list.get('history')
-#     max_length = json_post_list.get('max_length')
-#     top_p = json_post_list.get('top_p')
-#     temperature = json_post_list.get('temperature')
-#     repetition_penalty = json_post_list.get('repetition_penalty')
-#     max_time = json_post_list.get('max_time')
-
-#     response, history = CHAT_MODEL.model.chat(
-#         CHAT_MODEL.tokenizer,
-#         prompt,
-#         history=history,
-#         max_length=max_length if max_length else 2048,
-#         top_p=top_p if top_p else 0.7,
-#         temperature=temperature if temperature else 0.95,
-#         repetition_penalty=repetition_penalty if repetition_penalty else 1.0, 
-#         max_time=max_time if max_time else 60.0
-#     )
-
-#     now = datetime.now()
-#     time = now.strftime("%Y-%m-%d %H:%M:%S")
-#     answer = dict(
-#         response=response,
-#         history=history,
-#         status=200,
-#         time=time
-#     )
-#     logger.info("[{}] , prompt:\"{}\", response:\"{}\"".format(time, prompt, repr(response)))
-#     torch_gc()
-
-#     return answer
 
 
 async def create_chat(params: Params) -> Answer: 
@@ -157,9 +96,10 @@ async def create_stream_chat(params: Params) -> AsyncGenerator:
     torch_gc()
 
 
-async def batch_chat_chatglm2(params: Params) -> List[str]: 
-    """实现 ChatGLM2 模型的批量调用能力
+async def batch_chat_chatglm2(params: BatchParams) -> List[str]: 
+    """实现对话模型的批量调用能力
     TODO 对 ChatGLM 模型进行支持
+    TODO 对 InternLM 模型进行支持
     """
 
     class InvalidScoreLogitsProcessor(LogitsProcessor):
@@ -172,7 +112,7 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
     # 创建Logits处理器
     logits_processor = LogitsProcessorList()
     logits_processor.append(InvalidScoreLogitsProcessor())
-    logits_processor = logits_processor
+    # logits_processor = logits_processor
     
     gen_kwargs = dict(
         max_length=params.max_length,
@@ -183,13 +123,16 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
         logits_processor=logits_processor,
     )
 
+    # 对输入 query 进行组装各个模型的对话模板，形成可以激活对话能力的 prompt
     batch_inputs = []
     history = []
     for query in params.queries: 
         input = CHAT_MODEL.tokenizer.build_prompt(query, history=history)    # ChatGLM 1/2 是这里不同，build_prompt 是 2代实现的接口
         batch_inputs.append(input)
 
+    # 将组装好的对话 prompt 编码成 token ids
     batch_input_ids = CHAT_MODEL.tokenizer(batch_inputs, return_tensors='pt', padding=True).to(torch.device('cuda'))
+    # 这里采用的是 transformers 引擎加载模型，因此走 transformers 提供的 generate 接口
     batch_output_ids = CHAT_MODEL.model.generate(**batch_input_ids, **gen_kwargs).tolist()
 
     output_ids_list = []
@@ -205,4 +148,6 @@ async def batch_chat_chatglm2(params: Params) -> List[str]:
         output = output.strip()
         responses.append(output)
     torch_gc()
+
+    # TODO(@zyw): 使用 BatchAnswer 进行组装
     return responses
