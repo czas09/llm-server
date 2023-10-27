@@ -14,16 +14,6 @@ config = configparser.ConfigParser()
 config.read("./configs/configs.ini", encoding='utf-8')
 
 
-def fake_argparser(): 
-    """在命令行启动指令中添加一些提示信息"""
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, help="大模型名称")
-    parser.add_argument("--port", type=int, help="大模型服务端口")
-    parser.add_argument("--gpu_id", type=int, help="GPU 序号")
-    parser.add_argument("--engine", type=str, help="大模型推理引擎")
-
-
 # TODO(@zyw): 各个参数项的缺省值
 DEFAULT_CONFIGS = {
     # ==============================================================================
@@ -174,8 +164,37 @@ class Config:
 
 
 config = Config()
+
+
+def fake_argparser(): 
+    """在命令行启动指令中添加一些提示信息"""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, help="大模型名称")
+    parser.add_argument("--port", type=int, help="大模型服务端口")
+    parser.add_argument("--gpu_id", type=str, help="GPU 序号")
+    parser.add_argument("--engine", type=str, help="大模型推理引擎")
+    args = parser.parse_args()
+
+    # 入参对齐
+    if args.model != config.MODEL_NAME: 
+        raise ValueError(f"请检查配置文件：模型名称不是 {args.model}")
+    if args.port != config.SERVICE_PORT: 
+        raise ValueError(f"请检查配置文件：端口号不是 {str(args.port)}")
+    if args.gpu_id != config.GPUS: 
+        raise ValueError(f"请检查配置文件：显卡序号不是 {args.gpu_id}")
+    if args.engine != config.SERVING_ENGINE: 
+        raise ValueError(f"请检查配置文件：后端引擎不是 {args.engine}")
+
+
 logger.info("加载大模型服务配置项：{}".format(config.__dict__))
+
 if config.GPUS: 
     if len(config.GPUS.split(",")) < config.NUM_GPUS: 
         raise ValueError("Larger --num_gpus ({}) than --gpus {}".format(config.NUM_GPUS, config.GPUS))
     os.environ["CUDA_VISIBLE_DEVICES"] = config.GPUS
+
+
+if __name__ == '__main__': 
+
+    fake_argparser()
