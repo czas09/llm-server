@@ -176,6 +176,15 @@ def fake_argparser():
     parser.add_argument("--engine", type=str, help="大模型推理引擎")
     args = parser.parse_args()
 
+    if args.model is None: 
+        raise ValueError("请在命令行指令中添加模型名称：--model")
+    if args.port is None: 
+        raise ValueError("请在命令行指令中添加模型名称：--port")
+    if args.gpu_id is None: 
+        raise ValueError("请在命令行指令中添加模型名称：--gpu_id")
+    if args.engine is None: 
+        raise ValueError("请在命令行指令中添加模型名称：--engine")
+
     # 入参对齐
     if args.model != config.MODEL_NAME: 
         raise ValueError(f"请检查配置文件：模型名称不是 {args.model}")
