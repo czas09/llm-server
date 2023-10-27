@@ -20,7 +20,7 @@ from peft import PeftModel
 from loguru import logger
 
 from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
-from protocol import ChatMessage, Role
+from protocols import ChatMessage, Role
 from config import config
 
 
@@ -198,6 +198,8 @@ class ChatGLM2PromptAdapter(BasePromptAdapter):
         self.stop = dict()
     
     def construct_prompt(self, messages: List[ChatMessage]) -> str: 
+        """针对 OpenAI 风格接口"""
+
         prompt = self.system_prompt
         user_content = []
         i = 1
@@ -219,6 +221,23 @@ class ChatGLM2PromptAdapter(BasePromptAdapter):
             prompt += f"[Round {i}]\n\n{self.user_prompt.format(u_content)}"
 
         return prompt
+    
+    def build_prompt(self, query: str, history: Optional[List[List[str]]] = None): 
+        """针对 ChatGLM 风格接口
+        
+        TODO(@zyw): 这两个包装提示词的接口能否合并？
+        """
+
+        if history is None: 
+            history = []
+
+        prompt = ""
+        # 在 prompt 中拼接历史消息
+        for i, (old_query, response) in enumerate(history): 
+            # 注意 ChatGLM 与 ChatGLM2 这两个模型的拼接模板上的
+            prompt += "[Round {}]\n\n问：\n\n答：{}\n\n".format(i + 1, old_query, response)    # ChatGLM 模型的输入显式提供了问答轮数
+        # 在 prompt 中拼接最新的 query 消息
+        prompt += "[Round {}]\n\n问：{}\n\n答：".format(len(history) + 1, query)
 
 
 class ChatGLM2(BaseChatModel): 

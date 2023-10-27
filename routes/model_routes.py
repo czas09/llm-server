@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from loguru import logger
 
-from protocol import ModelCard, ModelList
+from protocols import ModelCard, ModelList
 from config import config
 
 

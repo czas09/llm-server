@@ -9,7 +9,7 @@ from transformers.generation.logits_process import (
 )
 from fastapi.responses import JSONResponse
 
-from protocol import ChatMessage, Role, ErrorResponse
+from protocols import ChatMessage, Role, ErrorResponse
 from .constants import ErrorCode
 
 

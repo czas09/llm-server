@@ -68,6 +68,8 @@ TODO 待整理
 * 服务调用方法：非流式、流式；cURL命令行调用 or openai python sdk or requests 调用
     * LangChain TODO
 
+参考 configs/ 目录下的配置文件，填写 configs.ini；或者将 config.py 文件中 config.read() 中的参数改成对应文件路径
+
 ### 后端引擎为 HF Transformers
 
 启动配置项设置，详见 configs/ 目录下的示例

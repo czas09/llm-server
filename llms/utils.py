@@ -2,7 +2,7 @@ from typing import List, Tuple
 
 from transformers import PreTrainedTokenizer
 
-from protocol import ChatMessage, Role
+from protocols import ChatMessage, Role
 
 
 def parse_messages(messages: List[ChatMessage], split_role=Role.USER) -> Tuple[str, List[List[ChatMessage]]]:
@@ -28,7 +28,10 @@ def build_baichuan_chat_input(
     max_new_tokens: int = 256
 ) -> List[int]:
     """  https://huggingface.co/baichuan-inc/Baichuan-13B-Chat/blob/main/generation_utils.py """
-    max_input_tokens = context_len - max_new_tokens
+    # context_len 上下文最大长度，百川 4096
+    # max_new_tokens 手动设置的 最大生成长度，默认 256，模型生成过程最多 256 次迭代
+    # max_input_tokens    相减得到的允许最大输入长度
+    max_input_tokens = context_len - max_new_tokens       
     system, rounds = parse_messages(messages)
     system_tokens = tokenizer.encode(system)
     max_history_tokens = max_input_tokens - len(system_tokens)
@@ -53,4 +56,4 @@ def build_baichuan_chat_input(
     if messages[-1].role != Role.ASSISTANT:
         input_tokens.append(196)
 
-    return input_tokens[-max_input_tokens:]  # truncate left
+    return input_tokens[-max_input_tokens:]  # 对输入 token ids 的左边进行截断

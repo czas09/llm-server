@@ -16,8 +16,8 @@ from peft import PeftModel
 from loguru import logger
 
 from llms.base import BaseChatModel, BaseModelAdapter, BasePromptAdapter
-from protocol import ChatMessage, Role
-from config import MODEL_NAME, MODEL_PATH
+from protocols import ChatMessage, Role
+from config import config
 
 
 class XverseModelAdapter(BaseModelAdapter): 

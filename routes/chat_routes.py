@@ -12,7 +12,7 @@ from loguru import logger
 
 from models.chat_model import CHAT_MODEL
 from config import config
-from protocol import (
+from protocols import (
     # ModelPermission,
     ChatCompletionRequest,
     ChatCompletionResponse,

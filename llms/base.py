@@ -16,7 +16,7 @@ from transformers import (
 )
 from transformers.utils.versions import require_version
 
-from protocol import ChatMessage, Role
+from protocols import ChatMessage, Role
 from config import config
 from utils import prepare_logits_processor, is_partial_stop, SERVER_ERROR_MSG
 from utils.constants import ErrorCode
