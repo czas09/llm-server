@@ -1,4 +1,4 @@
 **/__pycache__
 **/service.log
-.vscode
+.vscode/launch.json
 nohup.out
