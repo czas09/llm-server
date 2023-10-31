@@ -94,17 +94,17 @@ async def main(llm):
     for result in results: 
         print("模型回复：", result)
 
-    # 创建异步循环的另一种写法
-    loop = asyncio.get_event_loop()     # 创建一个事件循环
-    loop.run_until_complete(results)    # 执行上面的 asyncio.gather，等待全部完成
-    loop.close()                        # 关闭事件循环
+    # # 创建异步循环的另一种写法，不使用 asyncio.gather
+    # loop = asyncio.get_event_loop()     # 创建一个事件循环
+    # loop.run_until_complete(results)    # 执行上面的 asyncio.gather，等待全部完成
+    # loop.close()                        # 关闭事件循环
 
 
 if __name__ == '__main__': 
 
     llm = InternLM(
         host="172.21.4.23", 
-        port=10272, 
+        port=10375, 
         temperature=0.01, 
         top_p=0.3
     )
