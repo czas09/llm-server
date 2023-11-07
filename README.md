@@ -1,5 +1,6 @@
 # LLM-Server
 
+* [2023-11-07] 盐城部署（分支：xj-deploy-20231030）
 * [2023-10-30] XJ大模型部署（分支：xj-deploy-20231030）
 
 ## 功能点
@@ -31,14 +32,16 @@
 | Baichuan-13B-Chat  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | Baichuan2-7B-Chat  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | Baichuan2-13B-Chat | OpenAI style | HF Transformers <br> vLLM | √ | √ |
-| Qwen-7B-Chat       | WIP
-| Qwen-14B-Chat      | WIP
+| Qwen-7B-Chat       | OpenAI style | HF Transformers <br> vLLM | √ | √ |
+| Qwen-14B-Chat      | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | InternLM-Chat-7B   | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | InternLM-Chat-20B  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | XVERSE-13B-Chat    | WIP
 | XVERSE-7B-Chat     | WIP
 | AquilaChat2-7B     | WIP
 | AquilaChat2-34B    | WIP
+| Yi-6B              | WIP
+| Yi-34B             | WIP
 
 ## 后端引擎
 
