@@ -31,7 +31,7 @@ DEFAULT_CONFIGS = {
 
     "DEVICE": "cuda", 
     "DEVICE_MAP": None, 
-    "GPUS": None, 
+    "GPU_ID": None, 
     "NUM_GPUS": 1, 
 
     "QUANTIZE": 16, 
@@ -102,8 +102,8 @@ class Config:
             if config.get("MODEL", "device") != "" else DEFAULT_CONFIGS["DEVICE"]
         self.DEVICE_MAP = config.get("MODEL", "device_map") \
             if config.get("MODEL", "device_map") != "" else DEFAULT_CONFIGS["DEVICE_MAP"]
-        self.GPUS = config.get("MODEL", "gpus") \
-            if config.get("MODEL", "gpus") != "" else DEFAULT_CONFIGS["GPUS"]
+        self.GPU_ID = config.get("MODEL", "gpu_id") \
+            if config.get("MODEL", "gpu_id") != "" else DEFAULT_CONFIGS["GPU_ID"]
         self.NUM_GPUS = config.getint("MODEL", "num_gpus") \
             if config.get("MODEL", "num_gpus") != "" else DEFAULT_CONFIGS["NUM_GPUS"]
 
@@ -190,7 +190,7 @@ def fake_argparser():
         raise ValueError(f"请检查配置文件：模型名称不是 {args.model}")
     if args.port != config.SERVICE_PORT: 
         raise ValueError(f"请检查配置文件：端口号不是 {str(args.port)}")
-    if args.gpu_id != config.GPUS: 
+    if args.gpu_id != config.GPU_ID: 
         raise ValueError(f"请检查配置文件：显卡序号不是 {args.gpu_id}")
     if args.engine != config.SERVING_ENGINE: 
         raise ValueError(f"请检查配置文件：后端引擎不是 {args.engine}")
@@ -198,10 +198,10 @@ def fake_argparser():
 
 logger.info("加载大模型服务配置项：{}".format(config.__dict__))
 
-if config.GPUS: 
-    if len(config.GPUS.split(",")) < config.NUM_GPUS: 
-        raise ValueError("Larger --num_gpus ({}) than --gpus {}".format(config.NUM_GPUS, config.GPUS))
-    os.environ["CUDA_VISIBLE_DEVICES"] = config.GPUS
+if config.GPU_ID: 
+    if len(config.GPU_ID.split(",")) < config.NUM_GPUS: 
+        raise ValueError("Larger --num_gpus ({}) than --gpu_id {}".format(config.NUM_GPUS, config.GPU_ID))
+    os.environ["CUDA_VISIBLE_DEVICES"] = config.GPU_ID
 
 
 if __name__ == '__main__': 
