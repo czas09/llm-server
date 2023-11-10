@@ -103,20 +103,21 @@ class InternLM(ChatModel):
     
 
 if __name__ == '__main__': 
-    # llm = InternLM(
-    #     host="172.21.4.23", 
-    #     port=10375
-    # )
-
-    # for i in range(1): 
-    #     temp_prompt = """你好，请给我整理一份南京旅游攻略吧"""
-    #     print("第{}轮生成".format(i), llm.chat(temp_prompt))
-
-    llm = ChatGLM2(
+    llm = InternLM(
         host="172.21.4.23", 
-        port=10373, 
-        timeout=2.0
+        port=10375, 
+        temperature=1e-6
     )
 
-    prompt = "你好，请帮我编写一份南京旅游攻略"
-    print(llm.chat(prompt))
+    for i in range(1): 
+        temp_prompt = """你好，请给我整理一份南京旅游攻略吧"""
+        print("第{}轮生成".format(i), llm.chat(temp_prompt))
+
+    # llm = ChatGLM2(
+    #     host="172.21.4.23", 
+    #     port=10373, 
+    #     timeout=2.0
+    # )
+
+    # prompt = "你好，请帮我编写一份南京旅游攻略"
+    # print(llm.chat(prompt))
