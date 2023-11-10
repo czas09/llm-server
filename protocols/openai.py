@@ -65,6 +65,10 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0        # 用于控制模型是否生成常见词汇：0 表示更有可能生成常见词汇，1 表示完全避免生成常见词汇
     user: Optional[str] = None
 
+    # 额外支持参数
+    seed: Optional[int] = None                      # 随机种子
+    do_sample: Optional[bool] = True                # TODO是否随机生成（随机：多项式采样方式；非随机：贪婪搜索或波束搜索方式）
+    
     # Additional parameters support for stop generation
     stop_token_ids: Optional[List[int]] = None      # 作用与 stop 类似，但这里指定的是 token_ids
     repetition_penalty: Optional[float] = 1.1       # 重复词惩罚
