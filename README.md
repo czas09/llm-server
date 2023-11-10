@@ -1,29 +1,10 @@
 # LLM-Server
 
+* [2023-11-09] 新增 seed 参数，用于固化模型推理随机性（分支：deploy-xj-20231109）
 * [2023-11-07] 盐城部署（分支：xj-deploy-20231030）
 * [2023-10-30] XJ大模型部署（分支：xj-deploy-20231030）
 
 ## 功能点
-
-* 支持模型 TODO
-  * ChatGLM
-  * Baichuan
-  * Qwen
-  * InternLM
-  * XVERSE
-  * Aquila
-  * ...
-  * 支持自定义模型 TODO
-* 支持加载PEFT模型
-  * LoRA
-  * P-Tuning V2
-* 接口参数格式
-  * OpenAI API 格式：/v1/chat/completions
-  * 仿 ChatGLM 格式：/chat、/stream_chat、/batch_chat
-* 后端引擎
-  * HF Transformers
-  * vLLM
-  * LMDeploy TODO
 
 | 模型名称 | 接口格式 | 后端引擎 | 流式调用 | 加载 PEFT |
 | ----------         | ----- | :---: | :---: | :---: |
@@ -42,6 +23,13 @@
 | AquilaChat2-34B    | WIP
 | Yi-6B              | WIP
 | Yi-34B             | WIP
+
+* 支持加载PEFT模型
+  * LoRA
+  * P-Tuning V2
+* 接口参数格式
+  * OpenAI API 格式：/v1/chat/completions
+  * 仿 ChatGLM 格式：/chat、/stream_chat、/batch_chat
 
 ## 后端引擎
 
