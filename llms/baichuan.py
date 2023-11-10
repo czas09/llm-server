@@ -186,12 +186,12 @@ class Baichuan(BaseChatModel):
     def _get_model_tokenizer(self): 
         return self.model_adapter.load_model_tokenizer()
     
-    def get_model_adapter(): 
+    def _get_model_adapter(self): 
         """获取模型适配"""
         baichuan_model_adapter = BaichuanModelAdapter()
         return baichuan_model_adapter
     
-    def get_prompt_adapter(): 
+    def _get_prompt_adapter(self): 
         """获取提示词适配"""
         baichuan_prompt_adapter = BaichuanPromptAdapter()
         return baichuan_prompt_adapter
