@@ -94,7 +94,7 @@ async def main(llm):
     for result in results: 
         print("模型回复：", result)
 
-    # # 创建异步循环的另一种写法，不使用 asyncio.gather
+    # # 创建异步循环的另一种写法，不使用 asyncio.run
     # loop = asyncio.get_event_loop()     # 创建一个事件循环
     # loop.run_until_complete(results)    # 执行上面的 asyncio.gather，等待全部完成
     # loop.close()                        # 关闭事件循环
