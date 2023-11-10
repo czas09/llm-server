@@ -1,5 +1,6 @@
 # LLM-Server
 
+* [2023-11-09] ChatGLM2-6B 对话模型服务支持以 vLLM 后端方式启动
 * [2023-11-09] 新增 seed 参数，用于固化模型推理随机性（分支：deploy-xj-20231109）
 * [2023-11-07] 盐城部署（分支：xj-deploy-20231030）
 * [2023-10-30] XJ大模型部署（分支：xj-deploy-20231030）
@@ -9,7 +10,7 @@
 | 模型名称 | 接口格式 | 后端引擎 | 流式调用 | 加载 PEFT |
 | ----------         | ----- | :---: | :---: | :---: |
 | ChatGLM-6B         | ChatGLM style <br> OpenAI style (WIP) | HF Transformers | √ | √ |
-| ChatGLM2-6b        | ChatGLM style <br> OpenAI style (WIP) | HF Transformers | √ | √ |
+| ChatGLM2-6b        | ChatGLM style <br> OpenAI style (WIP) | HF Transformers <br> vLLM | √ | √ |
 | Baichuan-13B-Chat  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | Baichuan2-7B-Chat  | OpenAI style | HF Transformers <br> vLLM | √ | √ |
 | Baichuan2-13B-Chat | OpenAI style | HF Transformers <br> vLLM | √ | √ |
