@@ -25,6 +25,7 @@ from protocols import (
     Role,
 )
 from protocols import BatchParamsForvLLM, BatchAnswer
+from utils import set_random_seed
 
 
 logger.add("./service.log", level='INFO')
@@ -107,6 +108,10 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+    # 为本次生成固定随机种子
+    if request.seed: 
+        set_random_seed(request.seed)
 
     # 这里的 CHAT_MODEL 是基于 vllm.AsyncLLMEngine 接口加载的
     result_generator = CHAT_MODEL.generate(

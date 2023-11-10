@@ -24,7 +24,7 @@ from protocols import (
     UsageInfo,
     Role,
 )
-from utils import check_requests, create_error_response, ErrorCode
+from utils import create_error_response, set_random_seed
 
 
 logger.add("./service.log", level='INFO')
@@ -78,6 +78,10 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     )
 
     logger.debug(f"==== request ====\n{gen_params}")
+
+    # 为本次生成固定随机种子
+    if request.seed: 
+        set_random_seed(request.seed)
 
     if request.stream:
         generator = chat_completion_stream_generator(request.model, gen_params, request.n)

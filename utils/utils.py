@@ -7,15 +7,26 @@ from transformers.generation.logits_process import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
+import torch
+import numpy as np
+import random
 from fastapi.responses import JSONResponse
 
 from protocols import ChatMessage, Role, ErrorResponse
-from .constants import ErrorCode
+from utils import ErrorCode
 
 
 SERVER_ERROR_MSG = (
     "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
 )
+
+
+def set_random_seed(seed: int) -> None: 
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available(): 
+        torch.cuda.manual_seed_all(seed)
 
 
 def parse_messages(messages: List[ChatMessage], split_role=Role.USER) -> Tuple[str, List[List[ChatMessage]]]:
@@ -131,3 +142,8 @@ def check_requests(request) -> Optional[JSONResponse]:
         )
 
     return None
+
+
+if __name__ == '__main__': 
+
+    set_random_seed(1027)
