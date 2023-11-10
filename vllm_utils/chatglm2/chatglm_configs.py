@@ -1,11 +1,13 @@
 from transformers import PretrainedConfig
 
 
-class ChatGLMConfig(PretrainedConfig):
+class ChatGLMConfig(PretrainedConfig): 
+
     model_type = "chatglm"
     attribute_map = {
         "num_hidden_layers": "num_layers",
     }
+
     def __init__(
         self,
         num_layers=28,

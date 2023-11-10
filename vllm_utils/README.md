@@ -20,24 +20,24 @@ cp ./chatglm2/chatglm.py /path/to/env/vllm/model_executor/models/chatglm.py
 
 添加模块导入语句：
 ```python
-from vllm.model_executor.models.chatglm import ChatGLMModel
+from vllm.model_executor.models.chatglm import ChatGLMForCausalLM
 ```
 
 在 `__all__` 列表中添加模块暴露：
 ```python
 __all__ = [
     ...
-    "ChatGLMModel", 
+    "ChatGLMForCausalLM", 
 ]
 ```
 
 3. 然后修改 vllm/model_executor/model_loader.py 文件
 
-在模型注册字典 `_MODEL_REGISTRY` 中添加一行 `"ChatGLMModel": ChatGLMModel` 如下：
+在模型注册字典 `_MODEL_REGISTRY` 中添加一行 `"ChatGLMModel": ChatGLMForCausal` 如下：
 ```python
 _MODEL_REGISTRY = {
     ...
-    "ChatGLMModel": ChatGLMModel, 
+    "ChatGLMModel": ChatGLMForCausal, 
 }
 ```
 
@@ -74,15 +74,14 @@ _CONFIG_REGISTRY = {
 }
 ```
 
-### 3、修改 model_loader
+### 4、修改 vLLM 的 configs
 
-在 vllm/model_executor/model_loader.py 文件的 `_MODEL_REGISTRY` 字典中添加如下：
+在 vllm/config.py 文件的 `ModelConfig` 类中的 `get_num_kv_heads` 方法中（约 169 行）添加如下：
 
 ```python
-_MODEL_REGISTRY = {
-    ...
-    "ChatGLMModel": ChatGLMModel, 
-}
+if getattr(self.hf_config, "multi_query_group_num", None) is not None: 
+    return (self.hf_config.multi_query_group_num //
+            parallel_config.tensor_parallel_size)
 ```
 
 修改完成。
