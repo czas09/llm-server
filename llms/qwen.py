@@ -192,7 +192,8 @@ class QwenPromptAdapter(BasePromptAdapter):
         self.user_prompt = "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
         self.assistant_prompt = "{}<|im_end|>\n"
         self.stop = {
-            "strings": ["<|im_end|>"],
+            "token_ids": [151643, 151644, 151645],    # "<|endoftext|>", "<|im_start|>", "<|im_end|>"
+            "strings": ["<|endoftext|>", "<|im_end|>"],
         }
 
 
