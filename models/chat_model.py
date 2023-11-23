@@ -1,10 +1,22 @@
+from typing import Dict
+
+# from llms import CHAT_MODEL_NAME_MAPPING, PROMPT_ADAPTER_MAPPING
 from config import config
 
 
 def get_chat_model(): 
     """加载对话模型"""
 
-    if "chatglm2" in config.MODEL_NAME:    # TODO(zyw)
+    # TODO(@zyw): 重构此处代码
+    # for chat_model_name, ChatModel in CHAT_MODEL_NAME_MAPPING.items(): 
+    #     if chat_model_name + "-" in config.MODEL_NAME: 
+    #         model = ChatModel()
+
+    if "chatglm3" in config.MODEL_NAME:    # TODO(@zyw)
+        from llms import ChatGLM3
+        model = ChatGLM3()
+    
+    elif "chatglm2" in config.MODEL_NAME: 
         from llms import ChatGLM2
         model = ChatGLM2()
 
@@ -20,7 +32,7 @@ def get_chat_model():
         from llms import Baichuan
         model = Baichuan()
 
-    elif "qwen" in config.MODEL_NAME:    # TODO(zyw)
+    elif "qwen" in config.MODEL_NAME: 
         from llms import Qwen
         model = Qwen()
 
@@ -29,8 +41,12 @@ def get_chat_model():
         model = InternLM()
 
     elif "xverse" in config.MODEL_NAME:    # TODO(zyw)
-        from llms.xverse import load_xverse_model
-        model = load_xverse_model()
+        from llms import XVERSE
+        model = XVERSE()
+
+    elif "aquila" in config.MODEL_NAME:    # TODO(zyw)
+        from llms import Aquila
+        model = Aquila()
     
     return model
 
@@ -70,12 +86,21 @@ def get_chat_model_with_vllm():    # TODO(@zyw)
         trust_remote_code=True,
     )
 
+    # TODO(@zyw): 优化代码
+    # for chat_model_name, PromptAdapter in PROMPT_ADAPTER_MAPPING: 
+    #     if chat_model_name + "-" in config.MODEL_NAME: 
+    #         vllm_model.prompt_adapter = PromptAdapter()
+
     # 对话模型本体的加载是统一的，这里分别加载各自的 PromptAdapter 类
-    if "baichuan2" in config.MODEL_NAME: 
+    if "chatglm2" in config.MODEL_NAME: 
+        from llms.chatglm2 import ChatGLM2PromptAdapter
+        vllm_model.prompt_adapter = ChatGLM2PromptAdapter()
+
+    elif "baichuan2" in config.MODEL_NAME: 
         from llms.baichuan2 import Baichuan2PromptAdapter
         vllm_model.prompt_adapter = Baichuan2PromptAdapter()
 
-    if "baichuan" in config.MODEL_NAME: 
+    elif "baichuan" in config.MODEL_NAME: 
         from llms.baichuan import BaichuanPromptAdapter
         vllm_model.prompt_adapter = BaichuanPromptAdapter()
 
