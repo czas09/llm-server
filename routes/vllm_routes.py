@@ -226,6 +226,8 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
         usage=usage,
     )
 
+    logger.info(f"Response: {response}")
+
     if request.stream:
         # When user requests streaming, but we don't stream, we still need to
         # return a streaming response with a single event.
@@ -252,6 +254,7 @@ async def get_model_inputs(request, prompt, model_name):
             ).input_ids
         else:
             input_ids = CHAT_MODEL.engine.tokenizer(prompt).input_ids[-max_input_tokens:]  # truncate left
+
     elif isinstance(prompt[0], int):
         input_ids = prompt[-max_input_tokens:]  # truncate left
     
@@ -273,6 +276,7 @@ async def get_model_inputs(request, prompt, model_name):
             )
         else:
             raise ValueError(f"Model not supported yet: {model_name}")
+
     return input_ids, None
 
 

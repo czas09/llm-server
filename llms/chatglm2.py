@@ -253,6 +253,7 @@ class ChatGLM2(BaseChatModel):
         self.context_len: Optional[int] = config.CONTEXT_LEN
         self.stream_interval: Optional[int] = config.STREAM_INTERVERL
         self.use_streamer_v2: Optional[bool] = config.USE_STREAMER_V2
+        self.do_construct_prompt: bool = False
         self.fix_tokenizer()
 
     def _get_model_tokenizer(self): 

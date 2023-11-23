@@ -228,6 +228,7 @@ class InternLM(BaseChatModel):
         self.context_len: Optional[int] = config.CONTEXT_LEN
         self.stream_interval: Optional[int] = config.STREAM_INTERVERL
         self.use_streamer_v2: Optional[bool] = config.USE_STREAMER_V2
+        self.do_construct_prompt: bool = True
         self.fix_tokenizer()
     
     def _get_model_tokenizer(self): 
@@ -417,7 +418,7 @@ class InternLM(BaseChatModel):
         if i == max_new_tokens - 1: 
             finish_reason = "length"    # 模型生成达到最大长度
         elif stopped:
-            finish_reason = "stop"      # 停止词截停（包括eos）
+            finish_reason = "stop"      # 模型生成过程正常结束 或者 遇到停止词截停
         else:
             finish_reason = None
 
