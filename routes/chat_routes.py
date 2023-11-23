@@ -24,7 +24,11 @@ from protocols import (
     UsageInfo,
     Role,
 )
-from utils import create_error_response, set_random_seed
+from utils import (
+    create_error_response, 
+    set_random_seed, 
+    CHAT_MODEL_MAX_LEN_MAP
+)
 
 
 logger.add("./service.log", level='INFO')
@@ -68,7 +72,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
         prompt=messages,
         temperature=request.temperature,
         top_p=request.top_p,
-        max_tokens=request.max_tokens or 1024,
+        max_tokens=request.max_tokens or CHAT_MODEL_MAX_LEN_MAP[config.MODEL_NAME],
         echo=False,
         stream=request.stream,
         stop_token_ids=request.stop_token_ids,

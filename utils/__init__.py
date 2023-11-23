@@ -1,4 +1,7 @@
-from .constants import ErrorCode
+from .constants import (
+    CHAT_MODEL_MAX_LEN_MAP, 
+    ErrorCode
+)
 from .utils import (
     SERVER_ERROR_MSG, 
     set_random_seed, 

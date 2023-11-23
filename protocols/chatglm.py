@@ -15,6 +15,7 @@ class Params(BaseModel):
     num_beams: int = 1
     do_sample: bool = True
     max_time: float = 60.0
+    seed: Optional[int] = None
 
 
 class Answer(BaseModel):

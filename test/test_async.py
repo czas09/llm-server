@@ -27,12 +27,10 @@ class InternLM(ChatModel):
             model_name: Optional[str] = "internlm-chat-20b", 
             host: str = None, 
             port: int = None, 
-            max_length: Optional[int] = 2048, 
             temperature: Optional[float] = 0.97, 
             top_p: Optional[float] = 0.7
     ): 
         self.model_name = model_name
-        self.max_length: int = max_length
         self.temperature: float = temperature
         self.top_p: float = top_p
         self.host = host

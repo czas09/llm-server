@@ -18,12 +18,10 @@ class Baichuan2(ChatModel):
         model_name: Optional[str] = "baichuan-13b-chat", 
         host: str = None, 
         port: int = None, 
-        max_length: Optional[int] = 4096, 
         temperature: Optional[float] = 0.97, 
         top_p: Optional[float] = 0.7
     ): 
         self.model_name = model_name
-        self.max_length: int = max_length
         self.temperature: float = temperature
         self.top_p: float = top_p
         self.host = host

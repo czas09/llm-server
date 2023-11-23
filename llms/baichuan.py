@@ -198,13 +198,13 @@ class Baichuan(BaseChatModel):
     
     @torch.inference_mode()
     def _generate_stream(
-        self, 
-        model,
-        tokenizer,
-        gen_params,
-        device: str,
-        context_len: int,
-        stream_interval: int = 2,
+            self, 
+            model,
+            tokenizer,
+            gen_params,
+            device: str,
+            context_len: int,
+            stream_interval: int = 2,
     ): 
         """流式文本生成接口实现（参考 api-for-open-llm 和 fastchat 两个项目）"""
         # 这里是 FastChat 项目中自行实现的解码过程，不像 Transformers 中的 generate 支持大量的解码策略
