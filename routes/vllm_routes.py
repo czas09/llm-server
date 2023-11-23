@@ -113,6 +113,10 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     if request.seed: 
         set_random_seed(request.seed)
 
+    # 为本次生成固定随机种子
+    if request.seed: 
+        set_random_seed(request.seed)
+
     # 这里的 CHAT_MODEL 是基于 vllm.AsyncLLMEngine 接口加载的
     result_generator = CHAT_MODEL.generate(
         prompt if isinstance(prompt, str) else None,
