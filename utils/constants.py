@@ -31,3 +31,22 @@ class ErrorCode(IntEnum):
     GRADIO_STREAM_UNKNOWN_ERROR = 50004
     CONTROLLER_NO_WORKER = 50005
     CONTROLLER_WORKER_TIMEOUT = 50006
+
+
+# TODO(@zyw): 模型最大容量
+CHAT_MODEL_MAX_LEN_MAP = {
+    "chatglm-6b": 2048, 
+    "chatglm2-6b": 8192, 
+    "chatglm3-6b": 8192, 
+    "chatglm3-6b-32k": 32768, 
+    "baichuan-13b-chat": 4096, 
+    "baichuan2-7b-chat": 4096, 
+    "baichuan2-13b-chat": 4096, 
+    "qwen-7b-chat": 8192,       # 202308 旧版为 2048
+    "qwen-14b-chat": 8192, 
+    "internlm-chat-7b-v1-1": 2048, 
+    "internlm-chat-20b": 4096, 
+    "xverse-13b-chat": 2048, 
+    "aquilachat2-7b": 2048, 
+    "aquilachat2-34b": 2048, 
+}
